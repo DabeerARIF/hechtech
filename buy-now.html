@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Send HESH.TECH an order request and review delivery, payment, returns, and warranty information.">
+    <title>Buy Now | HESH.TECH</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .buy-topbar {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .buy-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: #1d4ed8;
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-decoration: none;
+        }
+
+        .buy-brand-mark {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: #0b1f5c;
+            color: #fff;
+        }
+
+        .buy-nav {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            padding: 0;
+            background: transparent;
+        }
+
+        .buy-nav a {
+            color: #5f6c7a;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        .buy-nav a:hover {
+            color: #1d4ed8;
+        }
+
+        .buy-info-card {
+            scroll-margin-top: 24px;
+        }
+
+        @media (max-width: 760px) {
+            .buy-topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 20px 5% 0;
+            }
+
+            .buy-nav {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 12px 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="buy-topbar">
+        <a class="buy-brand" href="index.html">
+            <span class="buy-brand-mark" aria-hidden="true">H</span>
+            <span>HESH.TECH</span>
+        </a>
+        <nav class="buy-nav" aria-label="Main navigation">
+            <a href="index.html">Home</a>
+            <a href="about.html">Products</a>
+            <a href="aboutus.html">About</a>
+            <a href="contact.html">Contact</a>
+        </nav>
+    </header>
+
+    <main class="buy-page">
+        <section class="buy-intro">
+            <p class="eyebrow">Order request</p>
+            <h1>Buy from HESH.TECH</h1>
+            <p>Share your contact and delivery details to prepare an order request. Your email app will open with a draft for you to review and send. This page does not process payments.</p>
+        </section>
+
+        <div class="buy-layout">
+            <section class="buy-card" aria-labelledby="order-heading">
+                <h2 id="order-heading">Your order details</h2>
+                <form class="buy-form" id="order-form">
+                    <div class="buy-field">
+                        <label for="customer-name">Full name</label>
+                        <input id="customer-name" name="name" type="text" autocomplete="name" required>
+                    </div>
+                    <div class="buy-field">
+                        <label for="customer-email">Email address</label>
+                        <input id="customer-email" name="email" type="email" autocomplete="email" required>
+                    </div>
+                    <div class="buy-field">
+                        <label for="customer-phone">Phone number</label>
+                        <input id="customer-phone" name="phone" type="tel" autocomplete="tel" required>
+                    </div>
+                    <div class="buy-field">
+                        <label for="product">Product</label>
+                        <select id="product" name="product" required>
+                            <option value="">Choose a product</option>
+                            <option value="airmax">AIRMAX</option>
+                            <option value="airpods-pro">AIRPODS PRO</option>
+                            <option value="airpods">AIRPODS</option>
+                            <option value="airdots">Airdots 300 Pro</option>
+                            <option value="airdots-300-pro">Airdots 300 Pro</option>
+                            <option value="alpha-airdots-500">Alpha Airdots 500</option>
+                            <option value="alpha">Alpha Airdots 500</option>
+                            <option value="apple-watch-series-9">Apple Watch Series 9</option>
+                            <option value="dji-mic3">DJI MIC3</option>
+                            <option value="echo-beat-500">ECHO BEAT-500</option>
+                            <option value="45w-charger">45Watt Charger</option>
+                            <option value="hk6700">HK6700 Keyboard</option>
+                            <option value="mark-pro">Mark Pro</option>
+                            <option value="mark">Mark Pro</option>
+                            <option value="matrix">Matrix Airdots 400</option>
+                            <option value="razor-rx50">RAZOR RX50</option>
+                            <option value="samsung-crystal-tv">Samsung Crystal TV</option>
+                            <option value="10000mah-power-bank">10000mAh Power Bank</option>
+                            <option value="vibe-max-pro">VIBE-MAX PRO</option>
+                            <option value="vibe-max-pro-02">VIBE-MAX-PRO.02</option>
+                            <option value="vision-x">VISION X</option>
+                        </select>
+                    </div>
+                    <div class="buy-field">
+                        <label for="quantity">Quantity</label>
+                        <input id="quantity" name="quantity" type="number" min="1" max="20" value="1" required>
+                    </div>
+                    <div class="buy-field">
+                        <label for="payment-method">Payment preference</label>
+                        <select id="payment-method" name="payment" required>
+                            <option value="">Choose a preference</option>
+                            <option>Cash on delivery (availability to be confirmed)</option>
+                            <option>Card or digital payment (details to be confirmed)</option>
+                            <option>Bank transfer (details to be confirmed)</option>
+                        </select>
+                    </div>
+                    <div class="buy-field full-width">
+                        <label for="delivery-address">Delivery address</label>
+                        <textarea id="delivery-address" name="address" autocomplete="street-address" required></textarea>
+                    </div>
+                    <div class="buy-field full-width">
+                        <label for="order-notes">Additional notes <span>(optional)</span></label>
+                        <textarea id="order-notes" name="notes"></textarea>
+                    </div>
+                    <p class="payment-note full-width">No card or bank account details are collected here. Payment options, shipping availability, fees, and delivery estimates will be confirmed before an order is finalized.</p>
+                    <button class="order-submit" type="submit">Prepare order email</button>
+                    <p class="buy-status" id="order-status" role="status" aria-live="polite"></p>
+                </form>
+            </section>
+
+            <aside class="buy-info">
+                <section class="buy-info-card" id="delivery">
+                    <h2>Delivery information</h2>
+                    <p>Delivery coverage, cost, and estimated arrival depend on the order destination. We will confirm these details with you before the order is finalized.</p>
+                </section>
+                <section class="buy-info-card" id="payment-methods">
+                    <h2>Payment methods</h2>
+                    <p>Select your preferred option in the request. Availability and secure payment instructions will be confirmed by HESH.TECH. Do not send payment details by email.</p>
+                </section>
+                <section class="buy-info-card" id="returns">
+                    <h2>Returns &amp; warranty</h2>
+                    <p>Return eligibility and warranty coverage vary by product. Contact support with your order details so we can confirm the applicable terms.</p>
+                    <p><a href="contact.html">Contact HESH.TECH support</a></p>
+                </section>
+                <section class="buy-info-card">
+                    <h2>Need help?</h2>
+                    <p>Email <a href="mailto:hello@hesh.tech">hello@hesh.tech</a> or visit our <a href="contact.html">Contact page</a>.</p>
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <div class="footer-brand-block">
+                <a class="footer-brand" href="index.html">
+                    <span class="footer-brand-mark" aria-hidden="true">H</span>
+                    <span>HESH.TECH</span>
+                </a>
+                <p class="footer-brand-copy">Thoughtful technology for everyday life. Discover products, useful guides, and support from HESH.TECH.</p>
+                <div class="footer-socials" aria-label="Social media logos">
+                    <span class="footer-social-icon" role="img" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="17.5" cy="6.8" r="1.2"></circle></svg></span>
+                    <span class="footer-social-icon" role="img" aria-label="YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2a31 31 0 0 0-.5 4.8 31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.7 15.1V8.9l5.5 3.1-5.5 3.1Z"></path></svg></span>
+                    <span class="footer-social-icon" role="img" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3V10H7.3v3h2.8v8h3.4Z"></path></svg></span>
+                </div>
+            </div>
+            <div class="footer-column">
+                <h2>Explore</h2>
+                <a href="index.html">Home</a>
+                <a href="about.html">Products</a>
+                <a href="HecHTech_Blog_Pages%20(6)/index.html">Blogs</a>
+                <a href="buy-now.html">Buy Now</a>
+            </div>
+            <div class="footer-column">
+                <h2>Customer care</h2>
+                <a href="#delivery">Delivery information</a>
+                <a href="#payment-methods">Payment methods</a>
+                <a href="#returns">Returns &amp; warranty</a>
+                <a href="contact.html">Contact us</a>
+            </div>
+            <div class="footer-column">
+                <h2>About</h2>
+                <a href="aboutus.html">About HESH.TECH</a>
+                <a href="contact.html">Help &amp; support</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 HESH.TECH. All rights reserved.</span>
+            <span>Delivery and payment details are confirmed with each order request.</span>
+        </div>
+    </footer>
+
+    <script>
+        const orderForm = document.querySelector("#order-form");
+        const productSelect = document.querySelector("#product");
+        const orderStatus = document.querySelector("#order-status");
+        const requestedProduct = new URLSearchParams(window.location.search).get("product");
+
+        if (requestedProduct && [...productSelect.options].some(option => option.value === requestedProduct)) {
+            productSelect.value = requestedProduct;
+        }
+
+        orderForm.addEventListener("submit", event => {
+            event.preventDefault();
+            const details = new FormData(orderForm);
+            const body = [
+                `Name: ${details.get("name")}`,
+                `Email: ${details.get("email")}`,
+                `Phone: ${details.get("phone")}`,
+                `Product: ${productSelect.selectedOptions[0].text}`,
+                `Quantity: ${details.get("quantity")}`,
+                `Payment preference: ${details.get("payment")}`,
+                `Delivery address: ${details.get("address")}`,
+                `Additional notes: ${details.get("notes") || "None"}`
+            ].join("\n");
+            const subject = `HESH.TECH order request - ${productSelect.selectedOptions[0].text}`;
+
+            orderStatus.textContent = "If your email app opens, review the draft and send it to submit your request. If it does not, contact hello@hesh.tech.";
+            window.location.href = `mailto:hello@hesh.tech?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        });
+    </script>
+</body>
+</html>

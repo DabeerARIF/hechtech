@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TV 3D Viewer</title>
+<style>
+  :root{ --bg-a:#eef0f2; --bg-b:#d3d6da; --text:#1c1e22; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 50% 30%, var(--bg-a), var(--bg-b));
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; color:var(--text); opacity:.45; pointer-events:none; transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(255,255,255,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.08);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.8);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.15); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #3d5a80; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hint">Drag to rotate</div>
+  <div id="colorbar">
+    <div class="swatch active" data-color="#101113" style="background:#101113"></div>
+    <div class="swatch" data-color="#e9e4da" style="background:#e9e4da"></div>
+    <div class="swatch" data-color="#3d5a80" style="background:#3d5a80"></div>
+    <div class="swatch" data-color="#8a1f2d" style="background:#8a1f2d"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 100);
+  camera.position.set(0, 0.2, 7.2);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  var key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(3, 5, 4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024,1024);
+  scene.add(key);
+  var fill = new THREE.DirectionalLight(0xbfd4ff, 0.3);
+  fill.position.set(-4, 2, -3);
+  scene.add(fill);
+
+  // Procedural colorful "screen on" texture, generic (not any real UI/brand)
+  var canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 288;
+  var ctx = canvas.getContext('2d');
+  var grad = ctx.createLinearGradient(0,0,512,288);
+  grad.addColorStop(0,'#6a5acd'); grad.addColorStop(0.35,'#20b2aa');
+  grad.addColorStop(0.65,'#ff7f7f'); grad.addColorStop(1,'#7ea8d8');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,512,288);
+  for(var i=0;i<40;i++){
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,'+(Math.random()*0.08)+')';
+    ctx.arc(Math.random()*512, Math.random()*288, Math.random()*80+20, 0, Math.PI*2);
+    ctx.fill();
+  }
+  var screenTex = new THREE.CanvasTexture(canvas);
+
+  var matFrame = new THREE.MeshStandardMaterial({ color:0x101113, roughness:0.35, metalness:0.4 });
+  var matScreen = new THREE.MeshStandardMaterial({ map:screenTex, roughness:0.2, metalness:0.1, emissive:0xffffff, emissiveMap:screenTex, emissiveIntensity:0.5 });
+  var matStand = new THREE.MeshStandardMaterial({ color:0x2a2c30, roughness:0.4, metalness:0.6 });
+
+  var tv = new THREE.Group();
+
+  var frame = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.6, 0.12), matFrame);
+  frame.castShadow = true;
+  frame.receiveShadow = true;
+  tv.add(frame);
+
+  var screen = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.42), matScreen);
+  screen.position.z = 0.065;
+  tv.add(screen);
+
+  var standNeck = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.16), matStand);
+  standNeck.position.y = -1.58;
+  standNeck.castShadow = true;
+  tv.add(standNeck);
+
+  var standBase = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 0.9), matStand);
+  standBase.position.y = -1.86;
+  standBase.castShadow = true;
+  standBase.receiveShadow = true;
+  tv.add(standBase);
+
+  tv.position.y = 0.6;
+  scene.add(tv);
+
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), new THREE.ShadowMaterial({ opacity:0.22 }));
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -1.9;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  var rotY = 0.4, rotX = 0.02, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  tv.rotation.y = rotY; tv.rotation.x = rotX;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.4, Math.min(0.4, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  function applyColor(hex){ matFrame.color.copy(new THREE.Color(hex)); }
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      applyColor(sw.getAttribute('data-color'));
+    });
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(autoRotate && !dragging){ targetRotY += 0.0032; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    tv.rotation.y = rotY;
+    tv.rotation.x = rotX;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

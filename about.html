@@ -1,0 +1,1483 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+    <style>
+        .new-arrivals-wrap {
+            max-width: 1400px;
+            margin: 30px auto 0;
+            padding: 0 20px;
+        }
+
+        .new-arrivals-wrap h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 24px;
+            padding: 0 0 14px;
+            display: inline-block;
+            color: #0b1f5c;
+            border-bottom: 2px solid #0b1f5c;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .new-arrivals-track {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+            scroll-snap-type: x mandatory;
+        }
+
+        .new-arrivals-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .new-arrivals-card {
+            flex: 0 0 calc(25% - 12px);
+            min-width: 260px;
+            background: #f3f4f6;
+            border: 1px solid #d9d9d9;
+            border-radius: 28px;
+            overflow: hidden;
+            scroll-snap-align: start;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+        }
+
+        .new-arrivals-media {
+            position: relative;
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        }
+
+        .new-arrivals-tag {
+            position: absolute;
+            left: 0;
+            z-index: 1;
+            padding: 6px 16px 6px 22px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #111827;
+            border-radius: 0 0 18px 0;
+        }
+
+        .new-arrivals-tag.top {
+            top: 0;
+            background: #cfe0ff;
+        }
+
+        .new-arrivals-tag.bottom {
+            bottom: 0;
+            background: #ffd64d;
+            border-radius: 0 18px 0 0;
+        }
+
+        .new-arrivals-model {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: var(--card-bg, linear-gradient(135deg, #f8fafc, #e2e8f0));
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .new-arrivals-model:active {
+            cursor: grabbing;
+        }
+
+        .new-arrivals-model canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .new-arrivals-model.is-error::after {
+            content: attr(data-error);
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            color: #475569;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .new-arrivals-info {
+            background: #ffffff;
+            margin: 0 12px 12px;
+            padding: 14px 20px 16px;
+            border-radius: 0 0 18px 18px;
+        }
+
+        .new-arrivals-name {
+            font-size: 18px;
+            margin: 0 0 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #d9d9d9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .new-arrivals-product-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .new-arrivals-product-link:hover {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .new-arrivals-price {
+            font-weight: 700;
+            font-size: 16px;
+            color: #0f172a;
+        }
+
+        .new-arrivals-old {
+            font-size: 14px;
+            color: #666;
+            text-decoration: line-through;
+            margin-left: 6px;
+            font-weight: 400;
+        }
+
+        .new-arrivals-save {
+            font-size: 12px;
+            font-weight: 700;
+            margin: 8px 0 12px;
+        }
+
+        .shop-now-image {
+            display: block;
+            width: 100%;
+            max-width: 1600px;
+            height: 680px;
+            margin: auto;
+            border-radius: 20px;
+            object-fit: cover;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            color: #0f172a;
+        }
+
+        .images-gallery {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            max-width: 1600px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .images-gallery img {
+            display: block;
+            width: 100%;
+            height: 320px;
+            border-radius: 16px;
+            object-fit: cover;
+        }
+
+        @media (max-width: 640px) {
+            .images-gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .new-arrivals-save span {
+            margin-left: 10px;
+            color: #16a34a;
+        }
+
+        .new-arrivals-swatches {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .new-arrivals-swatches label {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .new-arrivals-swatches input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .new-arrivals-sw {
+            display: block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1.5px solid #888;
+            background: var(--c, #000);
+            cursor: pointer;
+        }
+
+        .new-arrivals-swatches input:checked + .new-arrivals-sw {
+            outline: 2px solid #111827;
+            outline-offset: 2px;
+        }
+
+        .new-arrivals-rate {
+            font-weight: 700;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            color: #111827;
+        }
+
+        .new-arrivals-star {
+            color: #ffc400;
+        }
+
+        .new-arrivals-ver {
+            color: #14b86a;
+        }
+
+        .new-arrivals-add {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            width: 100%;
+            padding: 9px;
+            background: transparent;
+            color: #111827;
+            border: 1.5px solid #111827;
+            border-radius: 4px;
+            font: 600 15px inherit;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .new-arrivals-add:hover {
+            background: #111827;
+            color: #fff;
+        }
+
+        @media (max-width: 900px) {
+            .new-arrivals-card { flex-basis: 70%; }
+        }
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .single-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            gap: 18px;
+            justify-content: start;
+            max-width: 520px;
+            margin: 24px 0;
+            padding: 0;
+        }
+
+        .single-card-grid .card {
+            min-width: 0;
+        }
+
+        .anker-card-grid {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 27px;
+            padding-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .anker-card-grid .card {
+            flex: 0 0 clamp(130px, calc((100% - 90px) / 6), 230px);
+            min-width: 0;
+        }
+
+        .watch-card,
+        .powerbank-card,
+        .accessories-card,
+        .earbuds-card {
+            position: relative;
+            display: block;
+            width: 100%;
+            min-height: 330px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            background: #06121d;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .watch-card:hover,
+        .powerbank-card:hover,
+        .accessories-card:hover,
+        .earbuds-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 36px rgba(37, 99, 235, 0.35);
+        }
+
+        .watch-card img,
+        .powerbank-card img,
+        .accessories-card img,
+        .earbuds-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .watch-card:hover img,
+        .powerbank-card:hover img,
+        .accessories-card:hover img,
+        .earbuds-card:hover img {
+            transform: scale(1.08);
+        }
+
+        .powerbank-card a,
+        .accessories-card a,
+        .earbuds-card a,
+        .watch-card a {
+            position: relative;
+            display: block;
+            width: 100%;
+            height: 100%;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .watch-card a::after,
+        .powerbank-card a::after,
+        .accessories-card a::after,
+        .earbuds-card a::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 10%, rgba(15, 23, 42, 0.35) 50%, transparent 100%);
+        }
+
+        .catalog-card-content {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 18px;
+            z-index: 1;
+            color: #fff;
+        }
+
+        .catalog-card-content .badge {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: #fff;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .catalog-card-content .title {
+            margin: 0 0 8px;
+            font-size: 1.3rem;
+            line-height: 1.2;
+        }
+
+        .catalog-card-content .description {
+            margin: 0;
+            color: #dfeaf8;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav>
+        <h2>HESH.TECH</h2>
+
+        <a href="index.html">HOME</a>
+        <a href="#audio-heading">AUDIO</a>
+        <a href="aboutus.html">ABOUT</a>
+        <a href="contact.html">CONTACT</a>
+
+        <div class="nav-search-wrap">
+            <input type="text" id="search" class="nav-search" placeholder="Search...">
+            <button type="button" id="searchBtn" class="search-btn">
+                Search
+            </button>
+            </div>
+    </nav>
+
+
+    <!-- SLIDER -->
+    <div id="slider">
+
+        <input type="radio" name="slider" id="slide1" checked>
+        <input type="radio" name="slider" id="slide2">
+        <input type="radio" name="slider" id="slide3">
+        <input type="radio" name="slider" id="slide4">
+
+        <div id="slides">
+
+            <div id="overflow">
+
+                <div class="inner">
+
+                    <div class="slide slide_1">
+                        <img src="550.webp" alt="Samsung display">
+                    </div>
+
+                    <div class="slide slide_2">
+                        <img src="Gemini_Generated_Image_ozdsq9ozdsq9ozds.jpg"
+                            alt="Smart display">
+                    </div>
+
+                    <div class="slide slide_3">
+                        <img src="Gemini_Generated_Image_nv3loanv3loanv3l.jpg"
+                            alt="Smart display">
+                    </div>
+
+                    <div class="slide slide_4">
+                        <img src="yedsssss.webp"
+                            alt="Samsung display">
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!-- CARD SECTION -->
+
+    <!-- HEADING -->
+    <div class="PAPU">
+        <b><i>Explore Bestsellers</i></b>
+    </div>
+
+
+    <!-- THREE PRODUCT CARDS -->
+    <div class="cards">
+
+
+        <!-- CARD 1 : NOVAWAVE PRO -->
+        <a href="headset.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="Unreal Engine 5 _ 3D Product Animation - Headphones.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">NovaWave Pro</h3>
+
+                <p class="price">$129.99</p>
+
+                <p class="description">
+                    Elevate your everyday sound with NovaWave Pro.
+                    Featuring a sleek aesthetic, precision-engineered
+                    acoustic drivers and premium leather padding built
+                    for pure clarity and maximum comfort. Experience
+                    pure studio-grade audio.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+
+
+        <!-- CARD 2 : AIRMAX -->
+        <a href="airmax.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="Download Youtube Videos for Free - SaveFrom.net(1).mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">AIRMAX</h3>
+
+                <p class="price">$89.99</p>
+
+                <p class="description">
+                    Experience sound like never before. Explore the
+                    key features of these over-ear headphones, from
+                    Noise Cancellation and Transparent Mode to
+                    seamless connectivity and vibrant color variants.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+
+
+        <!-- CARD 3 : TECH WATCH -->
+        <a href="techwatch.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source src="watch.mp4" type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">APPLE WATCH SERIES 9</h3>
+
+                <p class="price">$99.99</p>
+
+                <p class="description">
+                    Stay connected with Tech Watch featuring a
+                    modern design, smart features, fitness tracking
+                    and a vibrant display. Built for style, convenience
+                    and everyday performance.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+        <!-- CARD 4 : APPLE AIRPODS PRO -->
+        <a href="AIRPODS.html" class="card airmax-card" aria-label="Apple AirPods Pro">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="airpodspro.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">Apple AirPods Pro</h3>
+
+                <p class="price">$199.99</p>
+
+                <p class="description">
+                    Hear every detail with premium wireless sound,
+                    active noise cancellation, adaptive transparency,
+                    and a comfortable in-ear fit designed for all-day listening.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+              <a href="TV.html" class="card airmax-card" aria-label="Apple AirPods Pro">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="TVVVVVV.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">Apple AirPods Pro</h3>
+
+                <p class="price">$199.99</p>
+
+                <p class="description">
+                    Hear every detail with premium wireless sound,
+                    active noise cancellation, adaptive transparency,
+                    and a comfortable in-ear fit designed for all-day listening.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+                
+
+            </div>
+             </a>
+
+    </div>
+
+         <!-- HEADING -->
+    <div class="PAPU" id="audio-heading">
+        <b><i>AUDIO</i></b>
+    </div>
+     <div class="cards">
+
+<!-- CARD 5 -->
+   <a href="HEADPHONE.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source src="HEADPHONE22.mp4" type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">EchoBeat 500</h3>
+
+                <p class="price">$159.99</p>
+
+                <p class="description">
+                   EchoBeat-500 delivers powerful sound with deep bass and clear audio for an immersive listening experience. Its stylish design and comfortable fit make it perfect for music, gaming, and everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+        <a href="tired.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source src="tired.mp4" type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">VIBE-MAX PRO</h3>
+
+                <p class="price">$169.99</p>
+
+                <p class="description">
+                   VIBE-MAX PRO delivers powerful sound with deep bass and clear audio for an immersive listening experience. Its stylish design and comfortable fit make it perfect for music, gaming, and everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+
+       <a href="burst.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source src="SHHHHHHHHHHHHHHHHHH.mp4" type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">VIBE-MAX PRO.02</h3>
+
+                <p class="price">$169,99</p>
+
+                <p class="description">
+                   VIBE-MAX PRO delivers powerful sound with deep bass and clear audio for an immersive listening experience. Its stylish design and comfortable fit make it perfect for music, gaming, and everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+            <a href="headset.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="Unreal Engine 5 _ 3D Product Animation - Headphones.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">NovaWave Pro</h3>
+
+                <p class="price">$129.99</p>
+
+                <p class="description">
+                    Elevate your everyday sound with NovaWave Pro.
+                    Featuring a sleek aesthetic, precision-engineered
+                    acoustic drivers and premium leather padding built
+                    for pure clarity and maximum comfort. Experience
+                    pure studio-grade audio.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+           <a href="airmax.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="Download Youtube Videos for Free - SaveFrom.net(1).mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">AIRMAX</h3>
+
+                <p class="price">$89.99</p>
+
+                <p class="description">
+                    Experience sound like never before. Explore the
+                    key features of these over-ear headphones, from
+                    Noise Cancellation and Transparent Mode to
+                    seamless connectivity and vibrant color variants.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+             <a href="AIRPODS.html" class="card airmax-card" aria-label="Apple AirPods Pro">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="samsung-qled.jpg">
+
+                <source
+                    src="airpodspro.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">Apple AirPods Pro</h3>
+
+                <p class="price">$199.99</p>
+
+                <p class="description">
+                    Hear every detail with premium wireless sound,
+                    active noise cancellation, adaptive transparency,
+                    and a comfortable in-ear fit designed for all-day listening.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+        
+
+    </div>
+
+    <section class="new-arrivals-wrap" aria-label="New arrivals products">
+        <h2>New Arrivals</h2>
+        <div class="new-arrivals-track">
+            <article class="new-arrivals-card">
+                <div class="new-arrivals-media">
+                    <span class="new-arrivals-tag top">Quad Mic ENC</span>
+                    <div class="new-arrivals-model" data-model="clip" data-shell="#262626" data-accent="#f59a1b" style="--card-bg: linear-gradient(135deg, #fff7ed, #fed7aa);" role="img" aria-label="3D preview of Airdots 300 Pro earbuds"></div>
+                    <span class="new-arrivals-tag bottom">Unique Clip Design</span>
+                </div>
+                <div class="new-arrivals-info">
+                    <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="first.html?product=airdots">Airdots 300 Pro</a></h3>
+                    <div><span class="new-arrivals-price">$399</span><span class="new-arrivals-old">$599</span></div>
+                    <div class="new-arrivals-save">Save $100 <span>50% OFF</span></div>
+                    <div class="new-arrivals-swatches">
+                        <label><input type="radio" name="color0" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+                        <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+                        <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#3b3320"></span></label>
+                        <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#fff"></span></label>
+                    </div>
+                    <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.8 | 108<span class="new-arrivals-ver">✔</span></div>
+                    <a class="new-arrivals-add" href="airdot300.html">ADD TO CART</a>
+                </div>
+            </article>
+
+            <article class="new-arrivals-card">
+                <div class="new-arrivals-media">
+                    <span class="new-arrivals-tag top">45ms Low Latency</span>
+                    <div class="new-arrivals-model" data-model="rgb" data-shell="#e8e8e8" data-accent="#2bd4f0" style="--card-bg: linear-gradient(135deg, #ecfeff, #bae6fd);" role="img" aria-label="3D preview of Matrix Airdots 400 earbuds"></div>
+                    <span class="new-arrivals-tag bottom">RGB Lights</span>
+                </div>
+                <div class="new-arrivals-info">
+                    <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="first.html?product=matrix">Matrix Airdots 400</a></h3>
+                    <div><span class="new-arrivals-price">$399</span><span class="new-arrivals-old">$599</span></div>
+                    <div class="new-arrivals-save">Save $100 <span>50% OFF</span></div>
+                    <div class="new-arrivals-swatches">
+                        <label><input type="radio" name="color1" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+                        <label><input type="radio" name="color1"><span class="new-arrivals-sw" style="--c:#fff"></span></label>
+                    </div>
+                    <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.9 | 183<span class="new-arrivals-ver">✔</span></div>
+                    <a class="new-arrivals-add" href="first.html?product=matrix">ADD TO CART</a>
+                </div>
+            </article>
+
+            <article class="new-arrivals-card">
+                <div class="new-arrivals-media">
+                    <span class="new-arrivals-tag top">Quad Mic ANC</span>
+                    <div class="new-arrivals-model" data-model="anc" data-shell="#c9c9c9" data-accent="#64748b" style="--card-bg: linear-gradient(135deg, #f1f5f9, #cbd5e1);" role="img" aria-label="3D preview of Alpha Airdots 500 earbuds"></div>
+                    <span class="new-arrivals-tag bottom">EQ Modes</span>
+                </div>
+                <div class="new-arrivals-info">
+                    <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" ?product=alpha">Alpha Airdots 500</a></h3>
+                    <div><span class="new-arrivals-price">$499</span><span class="new-arrivals-old">$999</span></div>
+                    <div class="new-arrivals-save">Save $500 <span>50% OFF</span></div>
+                    <div class="new-arrivals-swatches">
+                        <label><input type="radio" name="color2" checked><span class="new-arrivals-sw" style="--c:#aaa"></span></label>
+                        <label><input type="radio" name="color2"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+                        <label><input type="radio" name="color2"><span class="new-arrivals-sw" style="--c:#000"></span></label>
+                    </div>
+                    <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.8 | 266<span class="new-arrivals-ver">✔</span></div>
+                    <a class="new-arrivals-add" href="alpha.html">ADD TO CART</a>
+                </div>
+            </article>
+
+            <article class="new-arrivals-card">
+                <div class="new-arrivals-media">
+                    <span class="new-arrivals-tag top">Bt Calling</span>
+                    <div class="new-arrivals-model" data-model="watch" data-shell="#252525" data-accent="#ff6a3d" style="--card-bg: linear-gradient(135deg, #fff7ed, #fed7aa);" role="img" aria-label="3D preview of Mark Pro smartwatch"></div>
+                    <span class="new-arrivals-tag bottom">7 Days Backup</span>
+                </div>
+                <div class="new-arrivals-info">
+                    <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="first.html?product=mark">Mark Pro</a></h3>
+                    <div><span class="new-arrivals-price">$299</span><span class="new-arrivals-old">$499</span></div>
+                    <div class="new-arrivals-save">Save $199 <span> 50% OFF</span></div>
+                    <div class="new-arrivals-swatches">
+                        <label><input type="radio" name="color3" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+                        <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#f59a1b"></span></label>
+                        <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+                        <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#777"></span></label>
+                    </div>
+                    <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.9 | 15<span class="new-arrivals-ver">✔</span></div>
+                    <a class="new-arrivals-add" href="watch.html">ADD TO CART</a>
+                </div>
+            </article>
+        </div>
+    </section>
+     <!-- HEADING -->
+    <div id="shaka">
+        <b><i>ACCSASORIES</i></b>
+    </div>
+    <div class="cards anker-card-grid">
+
+        <!-- CARD 1 : ANKER NANO CHARGER -->
+        <a href="charger.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="Anker Nano Charger (45W, Smart Display, 180° Foldable) _ Anker Smart Display Charger.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">Anker Nano Charger</h3>
+
+                <p class="price">$79.99</p>
+
+                <p class="description">
+                    Charge your devices quickly with this compact 45W
+                    Anker Nano charger, featuring a smart display and
+                    a foldable plug for convenient everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+              <a href="tvdevice.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="hmmmm.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">VISION X</h3>
+
+                <p class="price">$199.99</p>
+
+                <p class="description">
+                  Upgrade your home entertainment with our latest Smart TV Device. Enjoy stunning picture quality, smooth streaming, and access to your favorite movies, TV shows, and online content. Its modern design and user-friendly features make entertainment easier, smarter, and more enjoyable. Bring the ultimate viewing experience to your home!
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+            <a href="powerbank.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="3D Animation video of power bank..mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">POWER BANK</h3>
+
+                <p class="price">$99.99</p>
+
+                    <p class="description">
+                    Stay powered on the go with our high-capacity power bank, designed to charge your devices quickly and efficiently. Its sleek design and multiple ports make it perfect for travel, work, or everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+                    <a href="powerbank.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="Wireless Gaming Keyboard - Commercial example animation.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">WIRELESS GAMING KEYBOARD</h3>
+
+                <p class="price">$99.99</p>
+
+                    <p class="description">
+                    Stay powered on the go with our high-capacity power bank, designed to charge your devices quickly and efficiently. Its sleek design and multiple ports make it perfect for travel, work, or everyday use.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+           <a href="mouse.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="Razer Viper Ultimate _ Not All Wireless Mice Are Created Equal.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">RAZOR RX50</h3>
+
+                <p class="price">$49.99</p>
+
+                    <p class="description">
+                    Experience precision and speed with the RAZOR RX50 wireless gaming mouse, designed for competitive gamers. Its ergonomic design, customizable buttons, and high-precision sensor ensure optimal performance and comfort during intense gaming sessions.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+          </a>
+           <a href="mic.html" class="card airmax-card">
+
+            <video class="card-video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+
+                <source
+                    src="Meet DJI Mic 3 - Advanced Mini Wireless Microphone.mp4"
+                    type="video/mp4">
+
+                Your browser does not support the video tag.
+            </video>
+
+            <div class="card-overlay"></div>
+
+            <div class="card-content">
+
+                <span class="badge">Featured</span>
+
+                <h3 class="title">DJI MIC3</h3>
+
+                <p class="price">$69.99</p>
+
+                    <p class="description">
+                    Experience precision and speed with the DJI MIC3 wireless microphone, designed for content creators. Its ergonomic design, customizable buttons, and high-precision sensor ensure optimal performance and comfort during intense recording sessions.
+                </p>
+
+                <span class="card-btn" aria-label="Buy now"></span>
+
+            </div>
+
+        </a>
+        </div>
+       <!-- HEADING -->
+    <div id="shaka">
+        <b><i>MOST POPULAR</i></b>
+    </div>
+
+    <section class="catalog-grid" aria-label="Featured product categories">
+        <a href="techwatch.html" class="card airmax-card" aria-label="Smart Watches">
+            <video class="card-video" autoplay loop muted playsinline
+                poster="Futuristic Smartwatch Lineup Banner.png">
+                <source src="Apple Watch Series 9 (GPS + Cellular).mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="card-overlay"></div>
+            <div class="card-content">
+                <span class="badge">Featured</span>
+                <h3 class="title">Smart Watches</h3>
+                <p class="description">Performance-driven wearables built for tracking, style, and everyday power.</p>
+            </div>
+        </a>
+        <a href="charger.html" class="card airmax-card" aria-label="Smart Chargers">
+            <video class="card-video" autoplay loop muted playsinline
+                poster="Screenshot From 2026-10-29 00-22-01.png">
+                <source
+                    src="Anker Nano Charger (45W, Smart Display, 180° Foldable) _ Anker Smart Display Charger.mp4"
+                    type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="card-overlay"></div>
+            <div class="card-content">
+                <span class="badge">Featured</span>
+                <h3 class="title">Smart Chargers</h3>
+                <p class="description">Fast, compact charging designed for work, travel, and daily productivity.</p>
+            </div>
+        </a>
+        <a href="AIRPODS.html" class="card airmax-card" aria-label="Accessories">
+            <video class="card-video" autoplay loop muted playsinline
+                poster="Screenshot From 2026-10-29 00-21-49.png">
+                <source src="3D Animation video of power bank..mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="card-overlay"></div>
+            <div class="card-content">
+                <span class="badge">Featured</span>
+                <h3 class="title">Accessories</h3>
+                <p class="description">Premium add-ons that upgrade your setup with convenience, style, and power.</p>
+            </div>
+        </a>
+        <a href="powerbank.html" class="card airmax-card" aria-label="Wireless Earbuds">
+            <video class="card-video" autoplay loop muted playsinline
+                poster="Screenshot From 2026-10-29 00-21-32.png">
+                <source src="airpodspro.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="card-overlay"></div>
+            <div class="card-content">
+                <span class="badge">Featured</span>
+                <h3 class="title">Wireless Earbuds</h3>
+                <p class="description">Immersive sound, all-day comfort, and seamless listening in every moment.</p>
+            </div>
+        </a>
+     <section class="new-arrivals-wrap" aria-label="New arrivals products">
+  <h2>MOST POPULAR</h2>
+  <div class="new-arrivals-track">
+
+    <!-- Card 1 -->
+    <article class="new-arrivals-card">
+      <div class="new-arrivals-media" style="--card-bg: linear-gradient(135deg, #fff7ed, #fed7aa);">
+        <span class="new-arrivals-tag top">Quad Mic ENC</span>
+        <iframe class="new-arrivals-model-frame" src="headphone-3d-viewer.html" title="3D preview of AIRMAX" loading="lazy" scrolling="no"></iframe>
+        <span class="new-arrivals-tag bottom">Unique Clip Design</span>
+      </div>
+      <div class="new-arrivals-info">
+        <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="airmax.html">AIRMAX</a></h3>
+        <div><span class="new-arrivals-price">$399</span><span class="new-arrivals-old">$599</span></div>
+        <div class="new-arrivals-save">Save $100 <span>50% OFF</span></div>
+        <div class="new-arrivals-swatches">
+          <label><input type="radio" name="color0" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+          <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+          <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#3b3320"></span></label>
+          <label><input type="radio" name="color0"><span class="new-arrivals-sw" style="--c:#fff"></span></label>
+        </div>
+        <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.8 | 108<span class="new-arrivals-ver">✔</span></div>
+        <a class="new-arrivals-add" href="airmax.html">ADD TO CART</a>
+      </div>
+    </article>
+
+    <!-- Card 2 -->
+    <article class="new-arrivals-card">
+      <div class="new-arrivals-media" style="--card-bg: linear-gradient(135deg, #ecfeff, #bae6fd);">
+        <span class="new-arrivals-tag top">Over-Ear Wireless</span>
+        <iframe class="new-arrivals-model-frame" src="chunky-headphone-3d-viewer.html" title="3D preview of ECHO BEAT-500 headphones" loading="lazy" scrolling="no"></iframe>
+        <span class="new-arrivals-tag bottom">Interactive 3D Model</span>
+      </div>
+      <div class="new-arrivals-info">
+        <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="HEADPHONE.html">ECHO BEAT-500</a></h3>
+        <div><span class="new-arrivals-price">$159.99</span><span class="new-arrivals-old">$199.99</span></div>
+        <div class="new-arrivals-save">Save $40 <span>20% OFF</span></div>
+        <div class="new-arrivals-swatches">
+          <label><input type="radio" name="color1" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+          <label><input type="radio" name="color1"><span class="new-arrivals-sw" style="--c:#fff"></span></label>
+        </div>
+        <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.9 | 183<span class="new-arrivals-ver">✔</span></div>
+        <a class="new-arrivals-add" href="HEADPHONE.html">ADD TO CART</a>
+      </div>
+    </article>
+
+    <!-- Card 3 -->
+    <article class="new-arrivals-card">
+      <div class="new-arrivals-media" style="--card-bg: linear-gradient(135deg, #f1f5f9, #cbd5e1);">
+        <span class="new-arrivals-tag top">Quad Mic ANC</span>
+        <iframe class="new-arrivals-model-frame" src="alpha-3d.html" title="3D preview of Alpha Airdots 500" loading="lazy" scrolling="no"></iframe>
+        <span class="new-arrivals-tag bottom">EQ Modes</span>
+      </div>
+      <div class="new-arrivals-info">
+        <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="first.html?product=alpha">Alpha Airdots 500</a></h3>
+        <div><span class="new-arrivals-price">$499</span><span class="new-arrivals-old">$999</span></div>
+        <div class="new-arrivals-save">Save $500 <span>50% OFF</span></div>
+        <div class="new-arrivals-swatches">
+          <label><input type="radio" name="color2" checked><span class="new-arrivals-sw" style="--c:#aaa"></span></label>
+          <label><input type="radio" name="color2"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+          <label><input type="radio" name="color2"><span class="new-arrivals-sw" style="--c:#000"></span></label>
+        </div>
+        <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.8 | 266<span class="new-arrivals-ver">✔</span></div>
+        <a class="new-arrivals-add" href="alpha.html">ADD TO CART</a>
+      </div>
+    </article>
+
+    <!-- Card 4 -->
+    <article class="new-arrivals-card">
+      <div class="new-arrivals-media" style="--card-bg: linear-gradient(135deg, #fff7ed, #fed7aa);">
+        <span class="new-arrivals-tag top">Bt Calling</span>
+        <iframe class="new-arrivals-model-frame" src="watch-3d.html" title="3D preview of Mark Pro smartwatch" loading="lazy" scrolling="no"></iframe>
+        <span class="new-arrivals-tag bottom">7 Days Backup</span>
+      </div>
+      <div class="new-arrivals-info">
+        <h3 class="new-arrivals-name"><a class="new-arrivals-product-link" href="first.html?product=mark">Mark Pro</a></h3>
+        <div><span class="new-arrivals-price">$299</span><span class="new-arrivals-old">$499</span></div>
+        <div class="new-arrivals-save">Save $199 <span>50% OFF</span></div>
+        <div class="new-arrivals-swatches">
+          <label><input type="radio" name="color3" checked><span class="new-arrivals-sw" style="--c:#000"></span></label>
+          <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#f59a1b"></span></label>
+          <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#15a05a"></span></label>
+          <label><input type="radio" name="color3"><span class="new-arrivals-sw" style="--c:#777"></span></label>
+        </div>
+        <div class="new-arrivals-rate"><span class="new-arrivals-star">★</span>4.9 | 15<span class="new-arrivals-ver">✔</span></div>
+        <a class="new-arrivals-add" href="watch.html">ADD TO CART</a>
+      </div>
+    </article>
+
+  </div>
+</section>
+     
+    </section>
+    <!-- IMAGES -->
+    <div>
+        <a href="#shaka">
+        <img class="shop-now-image" src="Shop Now_ Premium Tech Collection.png" alt="Shop now: premium tech collection">
+   </a>
+    </div>
+    <section class="images-gallery" aria-label="Featured images">
+       <a href="powerbank.html"> <img src="Screenshot From 2026-10-29 00-21-32.png" alt="Samsung display"></a>
+      <a href="mouse.html">  <img src="Screenshot From 2026-10-29 00-21-49.png" alt="Smart display"></a>
+       <a href="headphones.html">  <img src="Screenshot From 2026-10-29 00-22-01.png" alt="Smart display"></a>
+        <a href="techwatch.html"> <img src="Futuristic Smartwatch Lineup Banner.png" alt="Samsung display"></a>
+    </section>
+<!-- BLLOGS -->
+ <section class="latest-posts">
+
+    <div class="section-heading">
+        <span></span>
+        <h1>Latest Posts</h1>
+        <span></span>
+    </div>
+
+    <div class="posts-container">
+
+        <!-- First Post -->
+        <div class="post-card">
+            <a href="HecHTech_Blog_Pages%20(6)/index.html">
+            <img src="S3fx-qwrwSHPiI49Z7UoVacO6Mp8GKk_wzKW7UthXejLU9WdHMtVcIVbxvyeDBb4MlYgmK1milPaPOQd6QSCJuU8-3ROmcO4Un8GkHGFtll08R_fqk2zkzRwb79w7tEtxVCNy2wOTJY_NGluwFhAGIsgky3uVFYBiq94QtjOBJ3c61-jmoafAuODAC55qFsP.jpeg" alt="Dany 11.11 Sale">
+            </a>
+            <h2>The Dany 11.11 Sale Is Live: Your Favourite Tech Deals Are Here</h2>
+
+            <p>
+                The wait is finally over! The Dany 11.11 Sale is now live,
+                and it's time to make the most of the biggest tech sale
+                of the year. With discounts of up to 80%...
+            </p>
+
+        </div>
+
+
+        <!-- Second Post -->
+        <div class="post-card">
+
+         <a href="enc-anc-blog%20(1).html"> <img src="aW3k7Q9CxDNl9FG12Re4PVIUFnz1kG058knwH0UyjoNqW03NwU0PIX_xr1EnaaowP2GMlCzarZ9ADwKr71INMMc78Y9fDsQekzTCFVgu-HzmIxPv8P3gQ5U_ujU4hwT5mCxbsrSFelgvrKzGpl2eB4Kg4EG_HRAG0XWZszlzBtob9-t47Q-w8O8czEC0bdUt.jpeg" alt="ENC and ANC">
+</a>  
+            <h2>ENC + ANC</h2>
+
+            <p>
+                Noise is everywhere: traffic, crowded markets, office chatter,
+                the hum of a fan. If you've ever struggled to hear a call
+                or enjoy your music, you already know why noise control matters.
+                That's...
+            </p>
+
+        </div>
+
+    </div>
+<!-- BLOGS -->
+    <div class="explore-btn">
+  <a href="HecHTech_Blog_Pages%20(6)/index.html">BLOGS</a>
+    </div>
+
+</section>
+
+<footer class="site-footer">
+    <div class="site-footer-inner">
+        <div class="footer-brand-block">
+            <a class="footer-brand" href="index.html">
+                <span class="footer-brand-mark" aria-hidden="true">H</span>
+                <span>HESH.TECH</span>
+            </a>
+            <p class="footer-brand-copy">Thoughtful technology for everyday life. Discover products, useful guides, and support from HESH.TECH.</p>
+            <div class="footer-socials" aria-label="Social media logos">
+                <span class="footer-social-icon" role="img" aria-label="Instagram">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="17.5" cy="6.8" r="1.2"></circle></svg>
+                </span>
+                <span class="footer-social-icon" role="img" aria-label="YouTube">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2a31 31 0 0 0-.5 4.8 31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.7 15.1V8.9l5.5 3.1-5.5 3.1Z"></path></svg>
+                </span>
+                <span class="footer-social-icon" role="img" aria-label="Facebook">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3V10H7.3v3h2.8v8h3.4Z"></path></svg>
+                </span>
+            </div>
+        </div>
+
+        <div class="footer-column">
+            <h2>Explore</h2>
+            <a href="index.html">Home</a>
+            <a href="about.html">Products</a>
+            <a href="HecHTech_Blog_Pages%20(6)/index.html">Blogs</a>
+            <a href="buy-now.html">Buy Now</a>
+        </div>
+
+        <div class="footer-column">
+            <h2>Customer care</h2>
+            <a href="buy-now.html#delivery">Delivery information</a>
+            <a href="buy-now.html#payment-methods">Payment methods</a>
+            <a href="buy-now.html#returns">Returns &amp; warranty</a>
+            <a href="contact.html">Contact us</a>
+        </div>
+
+        <div class="footer-column">
+            <h2>About</h2>
+            <a href="aboutus.html">About HESH.TECH</a>
+            <a href="contact.html">Help &amp; support</a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>&copy; 2026 HESH.TECH. All rights reserved.</span>
+        <span>Delivery and payment details are confirmed with each order request.</span>
+    </div>
+</footer>
+
+</body>
+</html>

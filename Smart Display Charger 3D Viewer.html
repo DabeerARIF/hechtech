@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Display Charger 3D Viewer</title>
+<style>
+  :root{ --bg-a:#4a3426; --bg-b:#0b0807; --text:#f3ece4; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 50% 35%, var(--bg-a), var(--bg-b) 78%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(14px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; opacity:.4; pointer-events:none; transition:opacity .4s ease; white-space:nowrap;
+  }
+  #hint.hidden{ opacity:0; }
+  .bar{
+    position:absolute; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:8px; padding:7px 10px;
+    background:rgba(25,18,14,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  #colorbar{ top:calc(18px + env(safe-area-inset-top,0px)); gap:10px; }
+  #ctrlbar{ bottom:calc(42px + env(safe-area-inset-bottom,0px)); font-size:12px; }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.3);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #f0b27a; }
+  .pill{ padding:6px 12px; border-radius:999px; cursor:pointer; opacity:.6; white-space:nowrap; user-select:none; }
+  .pill.active{ opacity:1; background:rgba(255,255,255,0.15); }
+  .sep{ width:1px; height:16px; background:rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="colorbar" class="bar">
+    <div class="swatch active" data-color="#e2802f" style="background:#e2802f"></div>
+    <div class="swatch" data-color="#f1efe9" style="background:#f1efe9"></div>
+    <div class="swatch" data-color="#23252a" style="background:#23252a"></div>
+    <div class="swatch" data-color="#4a78b5" style="background:#4a78b5"></div>
+    <div class="swatch" data-color="#4f9a6b" style="background:#4f9a6b"></div>
+  </div>
+  <div id="ctrlbar" class="bar">
+    <div class="pill active" data-plug="0">Plug 180°</div>
+    <div class="pill" data-plug="1">Plug 90°</div>
+    <div class="sep"></div>
+    <div class="pill active" data-screen="hi">Screen: Hi</div>
+    <div class="pill" data-screen="chg">Screen: Charging</div>
+  </div>
+  <div id="hint">Drag to rotate</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, W/H, 0.1, 100);
+  camera.position.set(0, 0.2, 7.4);
+  camera.lookAt(0, -0.1, 0);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  var key = new THREE.DirectionalLight(0xfff0e0, 1.0);
+  key.position.set(-3, 4, 5);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbcd4ff, 0.55);
+  rim.position.set(4, 2, -4);
+  scene.add(rim);
+
+  // ---- Screen textures (generic, drawn procedurally) ----
+  function makeScreen(kind){
+    var cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    var c = cv.getContext('2d');
+    c.fillStyle = '#000'; c.fillRect(0,0,256,256);
+    if (kind === 'hi') {
+      c.fillStyle = '#fff'; c.font = 'bold 76px Arial, Helvetica, sans-serif';
+      c.textBaseline = 'middle'; c.fillText('Hi', 36, 150);
+      c.strokeStyle = '#3fd0ff'; c.lineWidth = 12; c.lineCap = 'round';
+      c.beginPath(); c.arc(168, 96, 40, Math.PI*0.9, Math.PI*1.9); c.stroke();
+      c.fillStyle = '#3fd0ff'; c.beginPath(); c.arc(168, 96, 6, 0, Math.PI*2); c.fill();
+    } else {
+      var g = c.createLinearGradient(0,0,256,0);
+      g.addColorStop(0,'#3fd0ff'); g.addColorStop(1,'#8affc1');
+      c.fillStyle = g; c.font = 'bold 84px Arial, Helvetica, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('45W', 128, 100);
+      c.fillStyle = '#d8e6ea'; c.font = '30px Arial, Helvetica, sans-serif';
+      c.fillText('Charging', 128, 170);
+      c.strokeStyle = '#3fd0ff'; c.lineWidth = 6;
+      c.beginPath(); c.moveTo(60, 214); c.lineTo(196, 214); c.stroke();
+    }
+    var t = new THREE.CanvasTexture(cv);
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+  }
+  var texHi = makeScreen('hi'), texChg = makeScreen('chg');
+
+  var matBody = new THREE.MeshStandardMaterial({ color:0xe2802f, roughness:0.55, metalness:0.05 });
+  var matBezel = new THREE.MeshStandardMaterial({ color:0x050505, roughness:0.2, metalness:0.2 });
+  var matScreen = new THREE.MeshBasicMaterial({ map:texHi });
+  var matMetal = new THREE.MeshStandardMaterial({ color:0xc9ccd1, roughness:0.28, metalness:0.9 });
+
+  function roundedRectShape(w, h, r){
+    var x = w/2, y = h/2, s = new THREE.Shape();
+    s.moveTo(-x+r, -y);
+    s.lineTo(x-r, -y);
+    s.quadraticCurveTo(x, -y, x, -y+r);
+    s.lineTo(x, y-r);
+    s.quadraticCurveTo(x, y, x-r, y);
+    s.lineTo(-x+r, y);
+    s.quadraticCurveTo(-x, y, -x, y-r);
+    s.lineTo(-x, -y+r);
+    s.quadraticCurveTo(-x, -y, -x+r, -y);
+    return s;
+  }
+
+  var charger = new THREE.Group();
+
+  // Body: shape faces the camera (XY), extruded along Z. After centering the front cap is at z = +0.52, back at -0.52.
+  var bodyGeo = new THREE.ExtrudeGeometry(roundedRectShape(1.5, 1.4, 0.3), {
+    depth:0.9, bevelEnabled:true, bevelThickness:0.07, bevelSize:0.06, bevelSegments:6, curveSegments:24
+  });
+  bodyGeo.center();
+  charger.add(new THREE.Mesh(bodyGeo, matBody));
+
+  // Display: dark bezel + screen with remapped UVs
+  var bezel = new THREE.Mesh(new THREE.ShapeGeometry(roundedRectShape(1.06, 1.06, 0.2), 20), matBezel);
+  bezel.position.z = 0.53;
+  charger.add(bezel);
+
+  var SZ = 0.94;
+  var screenGeo = new THREE.ShapeGeometry(roundedRectShape(SZ, SZ, 0.15), 20);
+  var pos = screenGeo.attributes.position, uv = screenGeo.attributes.uv;
+  for (var i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i)/SZ + 0.5, pos.getY(i)/SZ + 0.5);
+  var screen = new THREE.Mesh(screenGeo, matScreen);
+  screen.position.z = 0.54;
+  charger.add(screen);
+
+  // Foldable plug: pivots on the back face. 0 = straight back (180°), -90° = folded down.
+  var plug = new THREE.Group();
+  plug.position.set(0, -0.45, -0.52);
+  var plate = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.34, 0.1), matBody);
+  plate.position.z = -0.05;
+  plug.add(plate);
+  var hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.85, 16), matMetal);
+  hinge.rotation.z = Math.PI/2;
+  hinge.position.z = -0.02;
+  plug.add(hinge);
+  [-0.24, 0.24].forEach(function(x){
+    var blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.5), matMetal);
+    blade.position.set(x, 0, -0.35);
+    plug.add(blade);
+    var hole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.06, 12), matBezel);
+    hole.rotation.z = Math.PI/2;
+    hole.position.set(x, 0, -0.5);
+    plug.add(hole);
+  });
+  charger.add(plug);
+
+  var chargerRoot = new THREE.Group();
+  chargerRoot.add(charger);
+  scene.add(chargerRoot);
+
+  // ---- Controls ----
+  var plugTarget = 0, plugAngle = 0;
+  document.querySelectorAll('[data-plug]').forEach(function(p){
+    p.addEventListener('click', function(){
+      document.querySelectorAll('[data-plug]').forEach(function(q){ q.classList.remove('active'); });
+      p.classList.add('active');
+      plugTarget = p.getAttribute('data-plug') === '1' ? -Math.PI/2 : 0;
+    });
+  });
+  document.querySelectorAll('[data-screen]').forEach(function(p){
+    p.addEventListener('click', function(){
+      document.querySelectorAll('[data-screen]').forEach(function(q){ q.classList.remove('active'); });
+      p.classList.add('active');
+      matScreen.map = p.getAttribute('data-screen') === 'chg' ? texChg : texHi;
+    });
+  });
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      matBody.color.copy(new THREE.Color(sw.getAttribute('data-color')));
+    });
+  });
+  // Keep UI taps from starting a drag
+  document.querySelectorAll('.bar').forEach(function(b){
+    b.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+    b.addEventListener('touchstart', function(e){ e.stopPropagation(); }, {passive:true});
+  });
+
+  // ---- Drag to rotate ----
+  var rotY = 0.55, rotX = -0.08, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.6, Math.min(0.6, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  var t0 = performance.now();
+  function animate(){
+    requestAnimationFrame(animate);
+    var t = (performance.now() - t0) / 1000;
+    if(autoRotate && !dragging){ targetRotY += 0.0035; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    plugAngle += (plugTarget - plugAngle) * 0.12;
+    plug.rotation.x = plugAngle;
+    chargerRoot.rotation.y = rotY;
+    chargerRoot.rotation.x = rotX;
+    charger.position.y = Math.sin(t*1.3) * 0.05;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DJI Mic 3 – 3D Model</title>
+<style>
+html,body{margin:0;height:100%;background:#08090b;overflow:hidden;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#eef1f4}
+canvas{display:block;touch-action:none;cursor:grab}canvas:active{cursor:grabbing}
+#ui{position:fixed;left:16px;top:14px;pointer-events:none}
+h1{margin:0;font-size:20px;letter-spacing:.2em;font-weight:600}h1 span{color:#ff6a1a}
+p{margin:4px 0 0;font-size:12px;opacity:.6;letter-spacing:.05em}
+#bar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:94%}
+button{background:#12151a;color:#d5dae0;border:1px solid #333a44;padding:8px 14px;border-radius:6px;font-size:12px;letter-spacing:.08em;cursor:pointer}
+button:hover,button.on{background:#ff6a1a;color:#140700;border-color:#ff6a1a}
+#pan{position:fixed;right:14px;top:14px;background:#0d1015cc;border:1px solid #333a44;border-radius:10px;padding:12px;font-size:11px;letter-spacing:.1em;width:150px}
+#pan b{display:block;margin:8px 0 6px;color:#ff6a1a;font-weight:600}#pan b:first-child{margin-top:0}
+.sw{display:flex;flex-wrap:wrap;gap:6px}.sw i{width:22px;height:22px;border-radius:50%;border:2px solid #444;cursor:pointer}.sw i.sel{border-color:#fff}
+#pan input[type=color]{width:100%;height:26px;margin-top:6px;border:1px solid #333a44;background:none;padding:0;cursor:pointer}
+</style></head><body>
+<div id="ui"><h1>DJI <span>MIC 3</span></h1><p>Wireless mic system · receiver + transmitters · drag to rotate · scroll to zoom</p></div>
+<div id="pan"><b>BODY COLOR</b><div class="sw" id="bs"></div><input type="color" id="bc" value="#16181b">
+<b>ACCENT</b><div class="sw" id="as"></div><input type="color" id="ac" value="#ff6a1a"></div>
+<div id="bar">
+<button data-v="iso">ISO</button><button data-v="top">TOP</button><button data-v="front">FRONT</button><button data-v="side">SIDE</button><button data-v="back">BACK</button>
+<button data-m="both" class="on">SYSTEM</button><button data-m="rx">RECEIVER</button><button data-m="tx">TRANSMITTER</button>
+<button id="rot" class="on">AUTO-ROTATE</button><button id="wire">WIREFRAME</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.shadowMap.enabled=true;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x08090b);scene.fog=new THREE.Fog(0x08090b,350,800);
+const cam=new THREE.PerspectiveCamera(32,innerWidth/innerHeight,1,2000);
+
+// procedural studio environment
+const ec=document.createElement('canvas');ec.width=512;ec.height=256;const eg=ec.getContext('2d');
+let gr=eg.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#aab2bc');gr.addColorStop(.5,'#1b1f25');gr.addColorStop(1,'#07080a');
+eg.fillStyle=gr;eg.fillRect(0,0,512,256);eg.fillStyle='#fff';eg.fillRect(50,40,140,34);eg.fillRect(330,60,150,20);
+eg.fillStyle='#ff6a1a';eg.fillRect(250,110,12,90);
+const envTex=new THREE.CanvasTexture(ec);envTex.mapping=THREE.EquirectangularReflectionMapping;
+scene.environment=new THREE.PMREMGenerator(renderer).fromEquirectangular(envTex).texture;
+scene.add(new THREE.HemisphereLight(0xc8d2e0,0x08090b,.5));
+const keyL=new THREE.DirectionalLight(0xffffff,1.7);keyL.position.set(90,180,120);keyL.castShadow=true;
+keyL.shadow.mapSize.set(2048,2048);Object.assign(keyL.shadow.camera,{left:-150,right:150,top:150,bottom:-150});scene.add(keyL);
+const rimL=new THREE.DirectionalLight(0xff6a1a,1.2);rimL.position.set(-140,60,-120);scene.add(rimL);
+
+// helper: rounded box (w x h footprint in XY, depth d along Z, centered)
+function rbox(w,h,d,r,b){const W=w-2*b,H=h-2*b,R=Math.max(.1,r-b),x=-W/2,y=-H/2,s=new THREE.Shape();
+ s.moveTo(x+R,y);s.lineTo(x+W-R,y);s.quadraticCurveTo(x+W,y,x+W,y+R);s.lineTo(x+W,y+H-R);s.quadraticCurveTo(x+W,y+H,x+W-R,y+H);
+ s.lineTo(x+R,y+H);s.quadraticCurveTo(x,y+H,x,y+H-R);s.lineTo(x,y+R);s.quadraticCurveTo(x,y,x+R,y);
+ const g=new THREE.ExtrudeGeometry(s,{depth:d-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:5,curveSegments:20});
+ g.translate(0,0,-(d-2*b)/2);return g}
+const bodyMat=new THREE.MeshPhysicalMaterial({color:0x16181b,roughness:.5,metalness:.1,clearcoat:.3,clearcoatRoughness:.5});
+const glass=new THREE.MeshPhysicalMaterial({color:0x020304,roughness:.08,metalness:.2,clearcoat:1});
+const accMat=new THREE.MeshStandardMaterial({color:0xff6a1a,emissive:0xff6a1a,emissiveIntensity:1.2});
+const metal=new THREE.MeshStandardMaterial({color:0xb8bcc2,roughness:.3,metalness:1});
+const dark=new THREE.MeshStandardMaterial({color:0x2a2d32,roughness:.6,metalness:.4});
+function add(g,m,p,parent){const o=new THREE.Mesh(g,m);o.castShadow=o.receiveShadow=true;if(p)o.position.set(...p);parent.add(o);return o}
+
+// ===== RECEIVER =====
+const rx=new THREE.Group(),rl=new THREE.Group();rl.rotation.x=-Math.PI/2;rx.add(rl);rx.position.y=7;scene.add(rx);
+add(rbox(66,38,14,9,1.4),bodyMat,null,rl);
+add(rbox(44,26,1.2,4,.4),glass,[-9,0,7.1],rl);
+const sc=document.createElement('canvas');sc.width=512;sc.height=300;const sg=sc.getContext('2d');
+const scTex=new THREE.CanvasTexture(sc);scTex.encoding=THREE.sRGBEncoding;
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(40.5,23.7),new THREE.MeshBasicMaterial({map:scTex}));scr.position.set(-9,0,7.8);rl.add(scr);
+const lv=[.5,.5,.5,.5];
+function drawScreen(t){sg.fillStyle='#04050a';sg.fillRect(0,0,512,300);
+ sg.font='600 24px Arial';sg.fillStyle='#cfd6e0';sg.fillRect(18,16,34,28);sg.fillStyle='#04050a';sg.fillText('Q',26,38);
+ sg.fillStyle='#cfd6e0';sg.fillText('326F',64,38);sg.fillStyle='#f5c518';sg.fillRect(140,16,70,28);sg.fillStyle='#000';sg.font='600 20px Arial';sg.fillText('Host',148,37);
+ sg.font='italic 600 30px Arial';
+ for(let i=0;i<4;i++){const col=i%2,row=i>>1,x=18+col*250,y=90+row*85;
+  lv[i]=.45+.3*Math.sin(t*(1+i*.6)+i)+.15*Math.random();
+  sg.fillStyle='#fff';sg.fillText('TX'+(i+1),x,y+30);
+  sg.fillStyle='#1a1d22';sg.fillRect(x+78,y+8,90,26);
+  const gw=Math.min(90,lv[i]*90);sg.fillStyle=lv[i]>.85?'#f5c518':'#35e05a';sg.fillRect(x+78,y+8,gw,26);
+  sg.fillStyle='#cfd6e0';sg.fillRect(x+178,y+10,34,22);sg.fillStyle='#35e05a';sg.fillRect(x+181,y+13,28,16)}
+ sg.fillStyle='#fff';sg.beginPath();sg.arc(240,284,5,0,7);sg.fill();sg.fillStyle='#555';sg.beginPath();sg.arc(262,284,5,0,7);sg.fill();sg.beginPath();sg.arc(284,284,5,0,7);sg.fill();
+ scTex.needsUpdate=true}
+// rotary dial
+const dialO=new THREE.Group();dialO.position.set(23,0,7);dialO.rotation.x=Math.PI/2;rl.add(dialO);
+add(new THREE.CylinderGeometry(10.5,10.5,5,64),dark,[0,2.5,0],dialO);
+const dial=new THREE.Group();dial.position.y=0;dialO.add(dial);
+for(let i=0;i<48;i++){const a=i/48*Math.PI*2;const k=add(new THREE.BoxGeometry(.9,5,1.2),new THREE.MeshStandardMaterial({color:0x3a3d42,roughness:.5,metalness:.6}),[Math.cos(a)*10.5,2.5,Math.sin(a)*10.5],dial);k.rotation.y=-a}
+const ringM=add(new THREE.CylinderGeometry(8.2,8.2,.8,64),accMat,[0,5.1,0],dialO);
+add(new THREE.CylinderGeometry(7,7,1.6,64),metal,[0,5.4,0],dialO);
+add(new THREE.CylinderGeometry(7.1,7.1,.2,64),dark,[0,4.9,0],dialO).scale.set(1.1,1,1.1);
+// ports
+const jack=add(new THREE.CylinderGeometry(2.2,2.2,4,24),new THREE.MeshStandardMaterial({color:0xd4af37,metalness:1,roughness:.3}),[-34.5,6,0],rl);jack.rotation.z=Math.PI/2;
+add(new THREE.BoxGeometry(9,1,3.4),new THREE.MeshBasicMaterial({color:0}),[-6,-19.1,0],rl);
+add(new THREE.BoxGeometry(5,1.2,3),dark,[-15,19.1,0],rl);
+// cold shoe foot
+add(new THREE.BoxGeometry(18,12,3),dark,[0,0,-8.5],rl);
+
+// ===== TRANSMITTER =====
+function makeTX(){const g=new THREE.Group();
+ add(rbox(30,48,17,6,1.2),bodyMat,[0,24,0],g);
+ const gc=document.createElement('canvas');gc.width=gc.height=256;const gg=gc.getContext('2d');
+ gg.fillStyle='#07080a';gg.fillRect(0,0,256,256);gg.fillStyle='#8e949c';
+ for(let y=10;y<256;y+=12)for(let x=((y/12)%2)*6+8;x<256;x+=12){gg.beginPath();gg.arc(x,y,3,0,7);gg.fill()}
+ const gt=new THREE.CanvasTexture(gc);
+ const grille=new THREE.Mesh(new THREE.PlaneGeometry(22,24),new THREE.MeshStandardMaterial({map:gt,roughness:.6,metalness:.5}));grille.position.set(0,33,9.2);g.add(grille);
+ add(rbox(24,26,.8,4,.3),dark,[0,33,8.7],g);
+ grille.position.z=9.3;
+ const led=add(new THREE.CylinderGeometry(1.4,1.4,.6,24),accMat,[0,15,9],g);led.rotation.x=Math.PI/2;
+ const lc=document.createElement('canvas');lc.width=128;lc.height=40;const lg=lc.getContext('2d');lg.fillStyle='#cfd6e0';lg.font='700 28px Arial';lg.textAlign='center';lg.fillText('DJI',64,30);
+ const lbl=new THREE.Mesh(new THREE.PlaneGeometry(10,3.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(lc),transparent:true}));lbl.position.set(0,9,9.1);g.add(lbl);
+ add(new THREE.BoxGeometry(1.2,9,5),dark,[15.3,28,0],g);
+ add(new THREE.CylinderGeometry(5.5,5.5,1,32),metal,[0,26,-9],g).rotation.x=Math.PI/2;
+ add(rbox(22,38,2.2,2,.5),metal,[0,26,-11],g);
+ add(new THREE.BoxGeometry(20,2,5),metal,[0,45,-13.5],g);
+ return g}
+const tx1=makeTX(),tx2=makeTX();scene.add(tx1,tx2);
+
+// floor
+const floor=new THREE.Mesh(new THREE.CircleGeometry(500,64),new THREE.MeshStandardMaterial({color:0x0c0e11,roughness:.55,metalness:.4}));
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const grid=new THREE.GridHelper(600,60,0x2a2f38,0x14171c);grid.position.y=.05;scene.add(grid);
+
+// layout modes
+const target=new THREE.Vector3(8,18,0),tgt=target.clone();let trad=300,rad=300;
+function setMode(m){rx.visible=m!=='tx';tx1.visible=tx2.visible=m!=='rx';
+ if(m==='both'){rx.position.x=-36;tx1.position.set(34,0,4);tx2.position.set(70,0,-2);tx1.rotation.y=-.3;tx2.rotation.y=.25;tgt.set(14,16,0);trad=300}
+ if(m==='rx'){rx.position.x=0;tgt.set(0,8,0);trad=190}
+ if(m==='tx'){tx1.position.set(-22,0,0);tx2.position.set(22,0,0);tx1.rotation.y=-.25;tx2.rotation.y=.25;tgt.set(0,24,0);trad=190}}
+setMode('both');
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));b.classList.add('on');setMode(b.dataset.m)});
+
+// colors
+function applyAccent(c){accMat.color.set(c);accMat.emissive.set(c);rimL.color.set(c)}
+const bodyCols=['#16181b','#e9ebee','#3b4a63','#6b2b2b','#2f5d3a','#8a8f98','#c9a27a'];
+const accCols=['#ff6a1a','#00c8ff','#35e05a','#ff2d55','#bf5af2','#ffffff','#ffe600'];
+function mk(id,cols,fn,inp){const box=document.getElementById(id);cols.forEach((c,i)=>{const d=document.createElement('i');d.style.background=c;if(!i)d.className='sel';
+ d.onclick=()=>{box.querySelectorAll('i').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');document.getElementById(inp).value=c;fn(c)};box.appendChild(d)})}
+mk('bs',bodyCols,c=>bodyMat.color.set(c),'bc');mk('as',accCols,applyAccent,'ac');
+document.getElementById('bc').oninput=e=>bodyMat.color.set(e.target.value);
+document.getElementById('ac').oninput=e=>applyAccent(e.target.value);
+
+// orbit controls
+let th=.5,ph=1.05,auto=true,drag=false,lx=0,ly=0,tth=th,tph=ph;
+const el=renderer.domElement;
+el.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;el.setPointerCapture(e.pointerId)});
+addEventListener('pointerup',()=>drag=false);
+addEventListener('pointermove',e=>{if(!drag)return;tth-=(e.clientX-lx)*.008;tph=Math.min(Math.PI-.05,Math.max(.03,tph-(e.clientY-ly)*.008));lx=e.clientX;ly=e.clientY});
+el.addEventListener('wheel',e=>{e.preventDefault();trad=Math.min(600,Math.max(70,trad*(1+e.deltaY*.001)))},{passive:false});
+const views={iso:[.5,1.05],top:[0,.03],front:[0,Math.PI/2.1],side:[Math.PI/2,Math.PI/2.1],back:[Math.PI,Math.PI/2.1]};
+const rot=document.getElementById('rot');
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{[tth,tph]=views[b.dataset.v];auto=false;rot.classList.remove('on')});
+rot.onclick=()=>{auto=!auto;rot.classList.toggle('on',auto)};
+document.getElementById('wire').onclick=e=>{bodyMat.wireframe=!bodyMat.wireframe;e.target.classList.toggle('on',bodyMat.wireframe)};
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+const clock=new THREE.Clock();let lastS=0;
+(function loop(){requestAnimationFrame(loop);const t=clock.getElapsedTime();
+ if(auto&&!drag)tth+=.004;
+ th+=(tth-th)*.1;ph+=(tph-ph)*.1;rad+=(trad-rad)*.1;target.lerp(tgt,.1);
+ cam.position.set(target.x+rad*Math.sin(ph)*Math.sin(th),target.y+rad*Math.cos(ph),target.z+rad*Math.sin(ph)*Math.cos(th));cam.lookAt(target);
+ dial.rotation.y=Math.sin(t*.9)*.7;
+ if(rx.visible&&t-lastS>.09){lastS=t;drawScreen(t)}
+ renderer.render(scene,cam)})();
+</script></body></html>

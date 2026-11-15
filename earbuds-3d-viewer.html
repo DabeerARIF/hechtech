@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Earbuds 3D Viewer</title>
+<style>
+  :root{ --bg-a:#26282c; --bg-b:#050506; --text:#f0ece4; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 40% 28%, var(--bg-a), var(--bg-b) 72%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; color:var(--text); opacity:.4; pointer-events:none; transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(20,20,22,0.5); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.3);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.25); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #7ea8d8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hint">Drag to rotate</div>
+  <div id="colorbar">
+    <div class="swatch active" data-color="#eeeeee" style="background:#eeeeee"></div>
+    <div class="swatch" data-color="#1c1c1e" style="background:#1c1c1e"></div>
+    <div class="swatch" data-color="#3d5a80" style="background:#3d5a80"></div>
+    <div class="swatch" data-color="#c9a13b" style="background:#c9a13b"></div>
+    <div class="swatch" data-color="#8a2c2c" style="background:#8a2c2c"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, W/H, 0.1, 100);
+  camera.position.set(0, 0.15, 6.4);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  var key = new THREE.DirectionalLight(0xffffff, 1.0);
+  key.position.set(-3, 4, 4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024,1024);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbcd4ff, 0.5);
+  rim.position.set(4, 2, -3);
+  scene.add(rim);
+
+  var matBody = new THREE.MeshStandardMaterial({ color:0xeeeeee, roughness:0.15, metalness:0.05 });
+  var matDark = new THREE.MeshStandardMaterial({ color:0x1a1a1c, roughness:0.4, metalness:0.2 });
+  var matLed = new THREE.MeshStandardMaterial({ color:0x8ef58e, emissive:0x4fdc4f, emissiveIntensity:1.2 });
+
+  var group = new THREE.Group();
+
+  // Charging case — rounded capsule via a scaled, high-detail sphere
+  var caseBody = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 48), matBody);
+  caseBody.scale.set(1.05, 0.66, 0.78);
+  caseBody.position.y = -0.95;
+  caseBody.castShadow = true;
+  caseBody.receiveShadow = true;
+  group.add(caseBody);
+
+  // Lid seam
+  var seam = new THREE.Mesh(new THREE.TorusGeometry(1.06, 0.008, 8, 64), matDark);
+  seam.scale.set(1, 1, 0.78/1.06);
+  seam.position.y = -0.95;
+  seam.rotation.x = Math.PI/2;
+  group.add(seam);
+
+  // Status LED + charging port
+  var led = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), matLed);
+  led.position.set(0, -0.95, 0.78);
+  group.add(led);
+  var port = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.02), matDark);
+  port.position.set(0, -1.6, 0.6);
+  group.add(port);
+
+  function buildBud(xOff){
+    var bud = new THREE.Group();
+    var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 32), matBody);
+    bulb.scale.set(1, 1.15, 0.9);
+    bulb.castShadow = true;
+    bud.add(bulb);
+
+    var tip = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 20), matDark);
+    tip.position.set(0, -0.1, 0.28);
+    bud.add(tip);
+
+    var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.62, 20), matBody);
+    stem.position.set(0, -0.55, 0.06);
+    stem.rotation.x = 0.18;
+    stem.castShadow = true;
+    bud.add(stem);
+
+    var stemTip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), matDark);
+    stemTip.position.set(0, -0.86, 0.15);
+    bud.add(stemTip);
+
+    bud.position.x = xOff;
+    return bud;
+  }
+
+  var budL = buildBud(-0.85); budL.position.y = 1.0; budL.rotation.z = 0.12;
+  var budR = buildBud(0.85); budR.position.y = 1.0; budR.rotation.z = -0.12;
+  group.add(budL);
+  group.add(budR);
+
+  scene.add(group);
+
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), new THREE.ShadowMaterial({ opacity:0.35 }));
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -1.75;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  var rotY = 0.5, rotX = 0.05, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  group.rotation.y = rotY; group.rotation.x = rotX;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.5, Math.min(0.5, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  function applyColor(hex){ matBody.color.copy(new THREE.Color(hex)); }
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      applyColor(sw.getAttribute('data-color'));
+    });
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(autoRotate && !dragging){ targetRotY += 0.0035; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    group.rotation.y = rotY;
+    group.rotation.x = rotX;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

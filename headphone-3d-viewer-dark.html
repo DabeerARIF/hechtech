@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Headphone 3D Viewer — Dark</title>
+<style>
+  :root{
+    --bg-a:#3a342c; --bg-b:#0a0908; --text:#f0ece4;
+    box-sizing:border-box;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 30% 25%, var(--bg-a), var(--bg-b) 70%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text);
+    overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; letter-spacing:.02em; color:var(--text); opacity:.4; pointer-events:none;
+    transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(20,18,16,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.25);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #d9b25a; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hint">Drag to rotate · dial spins on the right ear cup</div>
+  <div id="colorbar">
+    <div class="swatch active" data-color="#1c1c1e" style="background:#1c1c1e"></div>
+    <div class="swatch" data-color="#e9e4da" style="background:#e9e4da"></div>
+    <div class="swatch" data-color="#5b4636" style="background:#5b4636"></div>
+    <div class="swatch" data-color="#2f3e46" style="background:#2f3e46"></div>
+    <div class="swatch" data-color="#6b1d1d" style="background:#6b1d1d"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, W/H, 0.1, 100);
+  camera.position.set(0, 0.1, 6.4);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  // Dramatic single-key studio lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+  var key = new THREE.DirectionalLight(0xffe9c9, 1.1);
+  key.position.set(-4, 3, 4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024,1024);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbfd0ff, 0.5);
+  rim.position.set(3, 2, -4);
+  scene.add(rim);
+
+  var matBody = new THREE.MeshStandardMaterial({ color:0x1c1c1e, roughness:0.28, metalness:0.4 });
+  var matCushion = new THREE.MeshStandardMaterial({ color:0x0c0c0d, roughness:0.9, metalness:0.0 });
+  var matMetal = new THREE.MeshStandardMaterial({ color:0xd8d4c8, roughness:0.2, metalness:0.95 });
+  var matDial = new THREE.MeshStandardMaterial({ color:0xe6e2d6, roughness:0.35, metalness:0.6 });
+
+  var headphones = new THREE.Group();
+
+  var band = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.1, 24, 64, Math.PI), matBody);
+  band.position.y = 0.1;
+  band.castShadow = true;
+  headphones.add(band);
+
+  function buildEarCup(sign, withDial){
+    var cup = new THREE.Group();
+
+    var yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.7,16), matMetal);
+    yoke.position.set(sign*1.5, -0.2, 0);
+    cup.add(yoke);
+
+    var hinge = new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16), matMetal);
+    hinge.position.set(sign*1.5, 0.12, 0);
+    cup.add(hinge);
+
+    var housing = new THREE.Mesh(new THREE.CylinderGeometry(0.66,0.66,0.3,40), matBody);
+    housing.rotation.z = Math.PI/2;
+    housing.position.set(sign*1.55, -0.5, 0);
+    housing.castShadow = true;
+    housing.receiveShadow = true;
+    cup.add(housing);
+
+    var rimRing = new THREE.Mesh(new THREE.TorusGeometry(0.66,0.02,12,48), matMetal);
+    rimRing.rotation.y = Math.PI/2;
+    rimRing.position.set(sign*1.70, -0.5, 0);
+    cup.add(rimRing);
+
+    if(withDial){
+      var dial = new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.38,0.06,48), matDial);
+      dial.rotation.z = Math.PI/2;
+      dial.position.set(sign*1.72, -0.5, 0);
+      dial.castShadow = true;
+      cup.add(dial);
+      var dialGroove = new THREE.Mesh(new THREE.TorusGeometry(0.38,0.012,8,48), matBody);
+      dialGroove.rotation.y = Math.PI/2;
+      dialGroove.position.set(sign*1.72, -0.5, 0);
+      cup.add(dialGroove);
+      cup.userData.dial = dial;
+    }
+
+    var cushion = new THREE.Mesh(new THREE.TorusGeometry(0.52,0.16,20,32), matCushion);
+    cushion.rotation.y = Math.PI/2;
+    cushion.position.set(sign*1.35, -0.5, 0);
+    cushion.castShadow = true;
+    cup.add(cushion);
+
+    return cup;
+  }
+
+  var leftCup = buildEarCup(-1, false);
+  var rightCup = buildEarCup(1, true);
+  headphones.add(leftCup);
+  headphones.add(rightCup);
+  headphones.position.y = 0.05;
+  scene.add(headphones);
+
+  // Faint reflective plinth
+  var ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(20,20),
+    new THREE.ShadowMaterial({ opacity:0.4 })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -1.75;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  var rotY = 0.5, rotX = 0.05, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  headphones.rotation.y = rotY;
+  headphones.rotation.x = rotX;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer);
+    autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){
+    dragging = true; lastX = x; lastY = y;
+    stage.classList.add('dragging');
+    hint.classList.add('hidden');
+    setIdleTimer();
+  }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY;
+    lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.5, Math.min(0.5, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  function applyColor(hex){
+    var c = new THREE.Color(hex);
+    matBody.color.copy(c);
+  }
+  var swatches = document.querySelectorAll('.swatch');
+  swatches.forEach(function(sw){
+    sw.addEventListener('click', function(){
+      swatches.forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      applyColor(sw.getAttribute('data-color'));
+    });
+  });
+
+  var dialSpin = 0;
+  function animate(){
+    requestAnimationFrame(animate);
+    if(autoRotate && !dragging){ targetRotY += 0.0035; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    headphones.rotation.y = rotY;
+    headphones.rotation.x = rotX;
+    dialSpin += 0.01;
+    if(rightCup.userData.dial){ rightCup.userData.dial.rotation.x = dialSpin; }
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

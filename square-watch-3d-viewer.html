@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Square Smartwatch 3D Viewer</title>
+<style>
+  :root{ --bg-a:#34363a; --bg-b:#070708; --text:#f0ece4; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 50% 35%, var(--bg-a), var(--bg-b) 75%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; color:var(--text); opacity:.4; pointer-events:none; transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(20,20,22,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.3);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #7ea8d8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hint">Drag to rotate</div>
+  <div id="colorbar">
+    <div class="swatch active" data-color="#1a1b1e" style="background:#1a1b1e"></div>
+    <div class="swatch" data-color="#e4ddc9" style="background:#e4ddc9"></div>
+    <div class="swatch" data-color="#2f4f7a" style="background:#2f4f7a"></div>
+    <div class="swatch" data-color="#8a2c2c" style="background:#8a2c2c"></div>
+    <div class="swatch" data-color="#2f6b4f" style="background:#2f6b4f"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, W/H, 0.1, 100);
+  camera.position.set(0, 0, 8.8);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  var key = new THREE.DirectionalLight(0xffffff, 1.0);
+  key.position.set(-3, 4, 5);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbcd4ff, 0.6);
+  rim.position.set(4, 1, -3);
+  scene.add(rim);
+
+  // ---------- Watch face texture (generic, drawn procedurally) ----------
+  var cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 624;
+  var c = cv.getContext('2d');
+  c.fillStyle = '#000'; c.fillRect(0,0,512,624);
+
+  c.fillStyle = '#fff'; c.textBaseline = 'top';
+  c.font = 'bold 128px Arial, Helvetica, sans-serif';
+  c.fillText('09:30', 26, 36);
+
+  // weather icon (sun + cloud)
+  c.fillStyle = '#ffc83d';
+  c.beginPath(); c.arc(446, 62, 22, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#e8eef5';
+  c.beginPath(); c.arc(436, 88, 18, 0, Math.PI*2); c.arc(462, 90, 15, 0, Math.PI*2); c.arc(450, 78, 17, 0, Math.PI*2); c.fill();
+  c.fillRect(436, 88, 28, 18);
+
+  c.fillStyle = '#cfd2d6'; c.font = '26px Arial, Helvetica, sans-serif';
+  c.fillText('27/08  THU  AM', 30, 178);
+  c.fillText('28\u00B0C', 410, 178);
+
+  // heart-rate trace
+  c.strokeStyle = '#e0402f'; c.lineWidth = 3; c.beginPath();
+  for (var x = 30; x <= 482; x += 4) {
+    var y = 285 + Math.sin(x*0.35)*9 + Math.sin(x*0.9)*6;
+    if (x > 300 && x < 330) y -= (x-300)*2.2;
+    if (x >= 330 && x < 345) y -= 66 - (x-330)*4.4;
+    if (x === 30) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.stroke();
+
+  c.strokeStyle = '#555'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(30, 350); c.lineTo(482, 350); c.stroke();
+
+  // three activity rings
+  var rings = [
+    { cx:100, color:'#e53935', val:'132',   pct:0.72 },
+    { cx:256, color:'#1e88e5', val:'25879', pct:0.85 },
+    { cx:412, color:'#fb8c00', val:'5879',  pct:0.6 }
+  ];
+  rings.forEach(function(r){
+    c.lineWidth = 11; c.lineCap = 'round';
+    c.strokeStyle = '#2a2a2a';
+    c.beginPath(); c.arc(r.cx, 478, 56, 0, Math.PI*2); c.stroke();
+    c.strokeStyle = r.color;
+    c.beginPath(); c.arc(r.cx, 478, 56, -Math.PI/2, -Math.PI/2 + Math.PI*2*r.pct); c.stroke();
+    c.fillStyle = '#fff'; c.font = 'bold 26px Arial, Helvetica, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(r.val, r.cx, 470);
+    c.fillStyle = r.color;
+    c.beginPath(); c.arc(r.cx, 504, 6, 0, Math.PI*2); c.fill();
+  });
+  c.textAlign = 'left';
+
+  var faceTex = new THREE.CanvasTexture(cv);
+  faceTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  // ---------- Materials ----------
+  var matCase = new THREE.MeshStandardMaterial({ color:0x1a1b1e, roughness:0.3, metalness:0.55 });
+  var matStrap = new THREE.MeshStandardMaterial({ color:0x1a1b1e, roughness:0.8, metalness:0.0 });
+  var matMetal = new THREE.MeshStandardMaterial({ color:0x8d9096, roughness:0.3, metalness:0.9 });
+  var matHole = new THREE.MeshBasicMaterial({ color:0x000000 });
+  var matFace = new THREE.MeshBasicMaterial({ map:faceTex });
+
+  function roundedRectShape(w, h, r){
+    var x = w/2, y = h/2, s = new THREE.Shape();
+    s.moveTo(-x+r, -y);
+    s.lineTo(x-r, -y);
+    s.quadraticCurveTo(x, -y, x, -y+r);
+    s.lineTo(x, y-r);
+    s.quadraticCurveTo(x, y, x-r, y);
+    s.lineTo(-x+r, y);
+    s.quadraticCurveTo(-x, y, -x, y-r);
+    s.lineTo(-x, -y+r);
+    s.quadraticCurveTo(-x, -y, -x+r, -y);
+    return s;
+  }
+
+  var watch = new THREE.Group();
+
+  // Case: shape lies in XY (faces camera), extruded along Z. Front cap sits at z = +0.20 after centering.
+  var caseGeo = new THREE.ExtrudeGeometry(roundedRectShape(1.5, 1.8, 0.28), {
+    depth:0.32, bevelEnabled:true, bevelThickness:0.04, bevelSize:0.03, bevelSegments:4, curveSegments:20
+  });
+  caseGeo.center();
+  watch.add(new THREE.Mesh(caseGeo, matCase));
+
+  // Screen with rounded corners and remapped UVs so the face texture fits exactly
+  var SW = 1.28, SH = 1.58;
+  var screenGeo = new THREE.ShapeGeometry(roundedRectShape(SW, SH, 0.17), 20);
+  var pos = screenGeo.attributes.position, uv = screenGeo.attributes.uv;
+  for (var i = 0; i < pos.count; i++) {
+    uv.setXY(i, pos.getX(i)/SW + 0.5, pos.getY(i)/SH + 0.5);
+  }
+  var screen = new THREE.Mesh(screenGeo, matFace);
+  screen.position.z = 0.215;
+  watch.add(screen);
+
+  // Side buttons
+  var btn1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.12), matMetal);
+  btn1.position.set(0.8, 0.2, 0);
+  watch.add(btn1);
+  var btn2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.1), matCase);
+  btn2.position.set(0.79, -0.25, 0);
+  watch.add(btn2);
+
+  // Lugs where straps attach
+  [1, -1].forEach(function(s){
+    var lug = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.16, 0.2), matCase);
+    lug.position.set(0, s*0.93, -0.03);
+    watch.add(lug);
+  });
+
+  // ---------- Straps (two segments each, curving back behind the wrist) ----------
+  function makeStrap(sign, withHoles){
+    var root = new THREE.Group();
+    root.position.set(0, sign*0.98, -0.06);
+    root.rotation.x = -sign*0.3;
+
+    var seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.7, 0.1), matStrap);
+    seg1.position.y = sign*0.35;
+    root.add(seg1);
+
+    var joint = new THREE.Group();
+    joint.position.y = sign*0.7;
+    joint.rotation.x = -sign*0.4;
+    root.add(joint);
+
+    var seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.7, 0.1), matStrap);
+    seg2.position.y = sign*0.35;
+    joint.add(seg2);
+
+    if (withHoles) {
+      for (var k = 0; k < 5; k++) {
+        var hole = new THREE.Mesh(new THREE.CircleGeometry(0.04, 16), matHole);
+        hole.position.set(0, -0.2 + k*0.1, 0.052);
+        seg2.add(hole);
+      }
+      var keeperB = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.15), matStrap);
+      keeperB.position.set(0, 0.3 * 1, 0);
+      seg2.add(keeperB);
+    } else {
+      var keeperT = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.15), matStrap);
+      keeperT.position.set(0, 0.05, 0);
+      seg1.add(keeperT);
+      // buckle pin
+      var pin = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 12), matMetal);
+      pin.rotation.z = Math.PI/2;
+      pin.position.set(0, 0.28, 0.08);
+      seg1.add(pin);
+    }
+    return root;
+  }
+
+  var strapTop = makeStrap(1, false);
+  var strapBottom = makeStrap(-1, true);
+  watch.add(strapTop);
+  watch.add(strapBottom);
+
+  scene.add(watch);
+
+  // ---------- Interaction ----------
+  var rotY = 0.55, rotX = 0.05, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  watch.rotation.y = rotY; watch.rotation.x = rotX;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.5, Math.min(0.5, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  function applyColor(hex){
+    var col = new THREE.Color(hex);
+    matCase.color.copy(col);
+    matStrap.color.copy(col);
+  }
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      applyColor(sw.getAttribute('data-color'));
+    });
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(autoRotate && !dragging){ targetRotY += 0.0035; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    watch.rotation.y = rotY;
+    watch.rotation.x = rotX;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

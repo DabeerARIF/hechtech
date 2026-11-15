@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact HESH.TECH</title>
+    <style>
+        :root {
+            --bg-1: #f4f2ee;
+            --bg-2: #f8f8f6;
+            --panel: rgba(255, 255, 255, 0.82);
+            --panel-soft: rgba(245, 247, 250, 0.86);
+            --text: #1f2937;
+            --muted: #5f6c7a;
+            --line: rgba(17, 24, 39, 0.08);
+            --accent: #1d4ed8;
+            --accent-2: #60a5fa;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(148, 163, 184, 0.12), transparent 28%),
+                linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+            color: var(--text);
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        .topbar {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 20px 0;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px 24px;
+            backdrop-filter: blur(14px);
+        }
+
+        .brand {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+        }
+
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .nav a:hover { color: var(--text); }
+
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: stretch;
+            margin-top: 32px;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 26px;
+            padding: 28px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+        }
+
+        .eyebrow {
+            display: inline-block;
+            color: var(--accent-2);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            margin: 0 0 16px;
+            font-size: clamp(2.3rem, 4vw, 3.6rem);
+            line-height: 0.95;
+            letter-spacing: -0.05em;
+        }
+
+        p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .info-list {
+            list-style: none;
+            padding: 0;
+            margin: 22px 0 0;
+            display: grid;
+            gap: 14px;
+        }
+
+        .info-list li {
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px 18px;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        form {
+            display: grid;
+            gap: 16px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,0.7);
+            font: inherit;
+            color: var(--text);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: var(--muted);
+        }
+
+        textarea {
+            min-height: 140px;
+            resize: vertical;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #06121d;
+            padding: 14px 18px;
+            font: 700 0.95rem Arial, Helvetica, sans-serif;
+            cursor: pointer;
+        }
+
+        @media (max-width: 760px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header class="topbar">
+            <h2 class="brand">HESH.TECH</h2>
+            <nav class="nav" aria-label="Main navigation">
+                <a href="index.html">Home</a>
+                <a href="about.html">Products</a>
+                <a href="aboutus.html">About</a>
+                <a href="contact.html">Contact</a>
+            </nav>
+        </header>
+
+        <main class="grid">
+            <section class="card">
+                <span class="eyebrow">Contact us</span>
+                <h1>Let’s talk tech.</h1>
+                <p>Have a question about a product, shipping, or warranty? We’re here to help.</p>
+                <ul class="info-list">
+                    <li>Email: hello@hesh.tech</li>
+                    <li>Phone: +1 (555) 204-7841</li>
+                    <li>Hours: Mon–Sat, 9:00 AM to 7:00 PM</li>
+                </ul>
+            </section>
+
+            <section class="card">
+                <form action="#" method="post">
+                    <input type="text" name="name" placeholder="Your name" aria-label="Your name">
+                    <input type="email" name="email" placeholder="Your email" aria-label="Your email">
+                    <textarea name="message" placeholder="How can we help?" aria-label="Message"></textarea>
+                    <button type="submit">Send message</button>
+                </form>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Streaming Box 3D Viewer</title>
+<style>
+  :root{ --bg-a:#2b2c30; --bg-b:#050506; --text:#eeeeee; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 50% 30%, var(--bg-a), var(--bg-b) 78%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; opacity:.4; pointer-events:none; transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(20,20,22,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.3);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #e5484d; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="colorbar">
+    <div class="swatch active" data-color="#17181b" style="background:#17181b"></div>
+    <div class="swatch" data-color="#4a4d54" style="background:#4a4d54"></div>
+    <div class="swatch" data-color="#ecebe7" style="background:#ecebe7"></div>
+    <div class="swatch" data-color="#1f3350" style="background:#1f3350"></div>
+    <div class="swatch" data-color="#b3262d" style="background:#b3262d"></div>
+  </div>
+  <div id="hint">Drag to rotate</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 100);
+  camera.position.set(0, 2.6, 8.4);
+  camera.lookAt(0, -0.25, 0);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  var key = new THREE.DirectionalLight(0xffffff, 1.0);
+  key.position.set(-3, 6, 5);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbcd0ff, 0.7);
+  rim.position.set(4, 3, -5);
+  scene.add(rim);
+
+  var matBody = new THREE.MeshStandardMaterial({ color:0x17181b, roughness:0.35, metalness:0.3 });
+  var matBtn = new THREE.MeshStandardMaterial({ color:0x3a3d42, roughness:0.35, metalness:0.5 });
+  var matMetal = new THREE.MeshStandardMaterial({ color:0xa9adb3, roughness:0.28, metalness:0.9 });
+  var matPanel = new THREE.MeshStandardMaterial({ color:0x0e1c3a, roughness:0.2, metalness:0.2, emissive:0x0a1a3a, emissiveIntensity:1.0 });
+  var matGlow = new THREE.MeshStandardMaterial({ color:0xcfd6df, roughness:0.4, metalness:0.2, emissive:0x6fa8ff, emissiveIntensity:0.4 });
+  var matLight = new THREE.MeshBasicMaterial({ color:0xd8dce2 });
+  var matRed = new THREE.MeshStandardMaterial({ color:0xd8353b, roughness:0.4, metalness:0.1 });
+  var matDot = new THREE.MeshBasicMaterial({ color:0x05060a });
+
+  function roundedRectShape(w, h, r){
+    var x = w/2, y = h/2, s = new THREE.Shape();
+    s.moveTo(-x+r, -y);
+    s.lineTo(x-r, -y);
+    s.quadraticCurveTo(x, -y, x, -y+r);
+    s.lineTo(x, y-r);
+    s.quadraticCurveTo(x, y, x-r, y);
+    s.lineTo(-x+r, y);
+    s.quadraticCurveTo(-x, y, -x, y-r);
+    s.lineTo(-x, -y+r);
+    s.quadraticCurveTo(-x, -y, -x+r, -y);
+    return s;
+  }
+
+  var root = new THREE.Group();
+
+  // ---------- Platform ----------
+  var platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.4, 3.5, 0.2, 64),
+    new THREE.MeshStandardMaterial({ color:0x1b1d20, roughness:0.55, metalness:0.2 })
+  );
+  platform.position.y = -0.37;
+  root.add(platform);
+  var ring = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.015, 8, 96), new THREE.MeshBasicMaterial({ color:0x585d64 }));
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = -0.27;
+  root.add(ring);
+
+  // ---------- Box ----------
+  // Profile drawn in XY then laid flat: extrusion becomes height. After centering, height spans +/-0.27, front wall at z = +1.01.
+  var boxGeo = new THREE.ExtrudeGeometry(roundedRectShape(2.8, 1.9, 0.38), {
+    depth:0.42, bevelEnabled:true, bevelThickness:0.06, bevelSize:0.06, bevelSegments:5, curveSegments:24
+  });
+  boxGeo.center();
+  var box = new THREE.Mesh(boxGeo, matBody);
+  box.rotation.x = -Math.PI/2;
+  var boxGroup = new THREE.Group();
+  boxGroup.add(box);
+  boxGroup.position.set(-0.2, 0, -0.5);
+
+  var FZ = 1.016;  // just in front of the front wall
+  var panel = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.17), matPanel);
+  panel.position.set(-0.85, 0, FZ);
+  boxGroup.add(panel);
+  var panelDot = new THREE.Mesh(new THREE.CircleGeometry(0.012, 10), matLight);
+  panelDot.position.set(-0.85, 0, FZ + 0.002);
+  boxGroup.add(panelDot);
+
+  var btnRing = new THREE.Mesh(new THREE.RingGeometry(0.115, 0.145, 40), matMetal);
+  btnRing.position.set(0, 0, FZ);
+  boxGroup.add(btnRing);
+  var btn = new THREE.Mesh(new THREE.CircleGeometry(0.115, 40), matGlow);
+  btn.position.set(0, 0, FZ);
+  boxGroup.add(btn);
+
+  var icoA = new THREE.Mesh(new THREE.CircleGeometry(0.04, 16), matLight);
+  icoA.position.set(0.82, 0, FZ);
+  boxGroup.add(icoA);
+  var icoB = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.095), matLight);
+  icoB.position.set(0.98, 0, FZ);
+  boxGroup.add(icoB);
+
+  root.add(boxGroup);
+
+  // ---------- Remote (lying flat, face up) ----------
+  var remoteInner = new THREE.Group();
+  var remGeo = new THREE.ExtrudeGeometry(roundedRectShape(0.5, 2.0, 0.22), {
+    depth:0.14, bevelEnabled:true, bevelThickness:0.035, bevelSize:0.03, bevelSegments:4, curveSegments:20
+  });
+  remGeo.center();
+  remoteInner.add(new THREE.Mesh(remGeo, matBody));
+
+  var RZ = 0.108;   // just above the front cap (z = 0.07 + 0.035)
+  function disc(r, x, y, mat){
+    var m = new THREE.Mesh(new THREE.CircleGeometry(r, 28), mat);
+    m.position.set(x, y, RZ); remoteInner.add(m); return m;
+  }
+  // power + mic
+  disc(0.045, -0.13, 0.82, matRed);
+  disc(0.04, 0.13, 0.82, matBtn);
+  // small buttons row
+  disc(0.04, -0.13, 0.62, matBtn);
+  disc(0.04, 0.0, 0.62, matBtn);
+  disc(0.04, 0.13, 0.62, matBtn);
+  // D-pad
+  var dpRing = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.2, 40), matBtn);
+  dpRing.position.set(0, 0.28, RZ); remoteInner.add(dpRing);
+  disc(0.085, 0, 0.28, matMetal);
+  // lower buttons
+  disc(0.045, -0.12, -0.12, matBtn);
+  disc(0.045, 0.12, -0.12, matBtn);
+  disc(0.045, -0.12, -0.3, matBtn);
+  disc(0.045, 0.12, -0.3, matBtn);
+  // speaker grille
+  for (var gy = 0; gy < 3; gy++) {
+    for (var gx = 0; gx < 5; gx++) {
+      disc(0.012, -0.12 + gx*0.06, -0.72 - gy*0.07, matDot);
+    }
+  }
+
+  var remote = new THREE.Group();
+  remoteInner.rotation.x = -Math.PI/2;  // lay flat, face up
+  remote.add(remoteInner);
+  remote.position.set(1.75, -0.165, 1.35);
+  remote.rotation.y = -0.55;
+  root.add(remote);
+
+  scene.add(root);
+
+  // ---------- Swatches ----------
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      matBody.color.copy(new THREE.Color(sw.getAttribute('data-color')));
+    });
+  });
+
+  // ---------- Drag to rotate ----------
+  var rotY = 0.35, rotX = 0.0, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  root.rotation.y = rotY;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.25, Math.min(0.45, targetRotX + dy * 0.004));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  var t0 = performance.now();
+  function animate(){
+    requestAnimationFrame(animate);
+    var t = (performance.now() - t0) / 1000;
+    if(autoRotate && !dragging){ targetRotY += 0.003; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    root.rotation.y = rotY;
+    root.rotation.x = rotX;
+    matGlow.emissiveIntensity = 0.35 + (Math.sin(t*2.2) * 0.5 + 0.5) * 0.7;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>

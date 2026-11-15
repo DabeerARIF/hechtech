@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smartwatch 3D Viewer</title>
+<style>
+  :root{ --bg-a:#241417; --bg-b:#050405; --text:#f0ece4; box-sizing:border-box; }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:radial-gradient(ellipse at 35% 30%, var(--bg-a), var(--bg-b) 72%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); overflow:hidden;
+  }
+  #stage{ width:100%; height:100dvh; position:relative; touch-action:none; cursor:grab; }
+  #stage.dragging{ cursor:grabbing; }
+  canvas{ display:block; width:100%; height:100%; }
+  #hint{
+    position:absolute; bottom:calc(22px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    font-size:12px; color:var(--text); opacity:.4; pointer-events:none; transition:opacity .4s ease;
+  }
+  #hint.hidden{ opacity:0; }
+  #colorbar{
+    position:absolute; top:calc(18px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    background:rgba(20,15,15,0.55); backdrop-filter:blur(8px);
+    border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
+  }
+  .swatch{
+    width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,0.25);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.3); transition:transform .15s ease;
+  }
+  .swatch:hover{ transform:scale(1.12); }
+  .swatch.active{ box-shadow:0 0 0 2px #d9b25a; }
+  #bandbar{
+    position:absolute; top:calc(58px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:8px; padding:6px 10px;
+    background:rgba(20,15,15,0.4); backdrop-filter:blur(8px);
+    border-radius:999px; font-size:11px;
+  }
+  .bandopt{ padding:4px 10px; border-radius:999px; cursor:pointer; opacity:.6; }
+  .bandopt.active{ opacity:1; background:rgba(255,255,255,0.12); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="hint">Drag to rotate</div>
+  <div id="colorbar">
+    <div class="swatch active" data-color="#1c1c1e" style="background:#1c1c1e"></div>
+    <div class="swatch" data-color="#e9e4da" style="background:#e9e4da"></div>
+    <div class="swatch" data-color="#8a1f2d" style="background:#8a1f2d"></div>
+    <div class="swatch" data-color="#2f3e46" style="background:#2f3e46"></div>
+    <div class="swatch" data-color="#d9b25a" style="background:#d9b25a"></div>
+  </div>
+  <div id="bandbar">
+    <div class="bandopt active" data-band="sport">Sport</div>
+    <div class="bandopt" data-band="woven">Woven</div>
+    <div class="bandopt" data-band="leather">Leather</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var hint = document.getElementById('hint');
+  var W = stage.clientWidth, H = stage.clientHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(28, W/H, 0.1, 100);
+  camera.position.set(0, 0.2, 6.8);
+
+  var renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+  var key = new THREE.DirectionalLight(0xffe3d0, 1.2);
+  key.position.set(-3, 4, 4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024,1024);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0xbcd4ff, 0.55);
+  rim.position.set(4, 2, -3);
+  scene.add(rim);
+
+  var matCase = new THREE.MeshStandardMaterial({ color:0x1c1c1e, roughness:0.25, metalness:0.75 });
+  var matScreen = new THREE.MeshStandardMaterial({ color:0x1a0a0c, roughness:0.15, metalness:0.1, emissive:0x8a1420, emissiveIntensity:0.9 });
+  var matHands = new THREE.MeshStandardMaterial({ color:0xf2ece4, roughness:0.3, metalness:0.1, emissive:0xf2ece4, emissiveIntensity:0.4 });
+  var matCrown = new THREE.MeshStandardMaterial({ color:0xcac6ba, roughness:0.3, metalness:0.9 });
+  var matBandSport = new THREE.MeshStandardMaterial({ color:0x141416, roughness:0.6, metalness:0.05 });
+  var matBandWoven = new THREE.MeshStandardMaterial({ color:0x6b5c4a, roughness:0.85, metalness:0.0 });
+  var matBandLeather = new THREE.MeshStandardMaterial({ color:0x3a2317, roughness:0.45, metalness:0.05 });
+
+  var watch = new THREE.Group();
+
+  // Rounded-square case via extruded shape
+  function roundedSquareShape(size, radius){
+    var s = size/2, r = radius;
+    var shape = new THREE.Shape();
+    shape.moveTo(-s+r, -s);
+    shape.lineTo(s-r, -s);
+    shape.quadraticCurveTo(s, -s, s, -s+r);
+    shape.lineTo(s, s-r);
+    shape.quadraticCurveTo(s, s, s-r, s);
+    shape.lineTo(-s+r, s);
+    shape.quadraticCurveTo(-s, s, -s, s-r);
+    shape.lineTo(-s, -s+r);
+    shape.quadraticCurveTo(-s, -s, -s+r, -s);
+    return shape;
+  }
+
+  var caseShape = roundedSquareShape(1.7, 0.55);
+  var caseGeo = new THREE.ExtrudeGeometry(caseShape, { depth:0.5, bevelEnabled:true, bevelThickness:0.05, bevelSize:0.04, bevelSegments:6, curveSegments:16 });
+  caseGeo.center();
+  var caseBody = new THREE.Mesh(caseGeo, matCase);
+  caseBody.castShadow = true;
+  caseBody.receiveShadow = true;
+  watch.add(caseBody);
+
+  // Screen (slightly inset on the front face)
+  var screenShape = roundedSquareShape(1.42, 0.42);
+  var screenGeo = new THREE.ExtrudeGeometry(screenShape, { depth:0.02, bevelEnabled:false, curveSegments:16 });
+  screenGeo.center();
+  var screen = new THREE.Mesh(screenGeo, matScreen);
+  screen.position.z = 0.31;
+  watch.add(screen);
+
+  // Watch-face detail so the screen reads clearly as a screen
+  var bezel = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.53, 48), matHands);
+  bezel.position.z = 0.321;
+  watch.add(bezel);
+
+  var hourHand = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.32, 0.01), matHands);
+  hourHand.position.set(0.06, 0.08, 0.33);
+  hourHand.rotation.z = -0.5;
+  watch.add(hourHand);
+
+  var minuteHand = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.5, 0.01), matHands);
+  minuteHand.position.set(-0.05, 0.12, 0.33);
+  minuteHand.rotation.z = 0.9;
+  watch.add(minuteHand);
+
+  var centerDot = new THREE.Mesh(new THREE.CircleGeometry(0.045, 20), matHands);
+  centerDot.position.z = 0.331;
+  watch.add(centerDot);
+
+  // Digital crown + side button
+  var crown = new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.12,24), matCrown);
+  crown.rotation.z = Math.PI/2;
+  crown.position.set(0.95, 0.05, 0.15);
+  crown.castShadow = true;
+  watch.add(crown);
+  var sideBtn = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.28,0.1), matCrown);
+  sideBtn.position.set(0.9, -0.32, 0.15);
+  watch.add(sideBtn);
+
+  // Bands (top and bottom straps)
+  var bandGroup = new THREE.Group();
+  function makeStrap(mat){
+    var g = new THREE.Group();
+    var geo = new THREE.BoxGeometry(0.85, 0.85, 0.14);
+    var top = new THREE.Mesh(geo, mat); top.position.y = 1.275; top.castShadow = true;
+    var bot = new THREE.Mesh(geo, mat); bot.position.y = -1.275; bot.castShadow = true;
+    g.add(top); g.add(bot);
+    return g;
+  }
+  var straps = { sport: makeStrap(matBandSport), woven: makeStrap(matBandWoven), leather: makeStrap(matBandLeather) };
+  bandGroup.add(straps.sport);
+  watch.add(bandGroup);
+  var currentBand = 'sport';
+
+  watch.position.y = 0.05;
+  scene.add(watch);
+
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), new THREE.ShadowMaterial({ opacity:0.4 }));
+  ground.rotation.x = -Math.PI/2;
+  ground.position.y = -1.9;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  var rotY = 0.5, rotX = 0.05, targetRotY = rotY, targetRotX = rotX;
+  var dragging = false, lastX = 0, lastY = 0, idleTimer = null, autoRotate = true;
+  watch.rotation.y = rotY; watch.rotation.x = rotX;
+
+  function setIdleTimer(){
+    clearTimeout(idleTimer); autoRotate = false;
+    idleTimer = setTimeout(function(){ autoRotate = true; }, 2200);
+  }
+  function pointerDown(x,y){ dragging = true; lastX = x; lastY = y; stage.classList.add('dragging'); hint.classList.add('hidden'); setIdleTimer(); }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    var dx = x - lastX, dy = y - lastY; lastX = x; lastY = y;
+    targetRotY += dx * 0.008;
+    targetRotX = Math.max(-0.5, Math.min(0.5, targetRotX + dy * 0.006));
+    setIdleTimer();
+  }
+  function pointerUp(){ dragging = false; stage.classList.remove('dragging'); }
+
+  stage.addEventListener('mousedown', function(e){ pointerDown(e.clientX,e.clientY); });
+  window.addEventListener('mousemove', function(e){ pointerMove(e.clientX,e.clientY); });
+  window.addEventListener('mouseup', pointerUp);
+  stage.addEventListener('touchstart', function(e){ var t=e.touches[0]; pointerDown(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', function(e){ var t=e.touches[0]; pointerMove(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchend', pointerUp);
+
+  function applyColor(hex){ matCase.color.copy(new THREE.Color(hex)); }
+  document.querySelectorAll('.swatch').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('active'); });
+      sw.classList.add('active');
+      applyColor(sw.getAttribute('data-color'));
+    });
+  });
+  document.querySelectorAll('.bandopt').forEach(function(opt){
+    opt.addEventListener('click', function(){
+      document.querySelectorAll('.bandopt').forEach(function(o){ o.classList.remove('active'); });
+      opt.classList.add('active');
+      bandGroup.remove(straps[currentBand]);
+      currentBand = opt.getAttribute('data-band');
+      bandGroup.add(straps[currentBand]);
+    });
+  });
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if(autoRotate && !dragging){ targetRotY += 0.0035; }
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    watch.rotation.y = rotY;
+    watch.rotation.x = rotX;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  function onResize(){
+    W = stage.clientWidth; H = stage.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
+  }
+  window.addEventListener('resize', onResize);
+})();
+</script>
+</body>
+</html>
